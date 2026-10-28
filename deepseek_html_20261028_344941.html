@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>3D Сервисный центр — ФИНАЛ</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; background: #000; color: #fff; user-select: none; }
+    canvas { display: block; }
+
+    #hud { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, rgba(10,20,40,0.9), rgba(20,10,40,0.9)); padding: 12px 30px; border-radius: 16px; display: flex; gap: 30px; font-size: 18px; font-weight: bold; z-index: 10; border: 1px solid rgba(96,165,250,0.3); backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    #hud .g { color: #4ade80; } #hud .b { color: #60a5fa; } #hud .y { color: #fbbf24; }
+
+    #title { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: rgba(59,130,246,0.4); padding: 6px 20px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #93c5fd; z-index: 10; backdrop-filter: blur(8px); border: 1px solid rgba(96,165,250,0.3); }
+    #title.w { background: rgba(251,146,60,0.4); color: #fdba74; border-color: rgba(251,146,60,0.3); }
+
+    #hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.75); padding: 10px 24px; border-radius: 12px; font-size: 14px; z-index: 10; text-align: center; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
+    #cameraHint { position: fixed; bottom: 60px; right: 20px; background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 10px; font-size: 12px; color: #94a3b8; z-index: 10; backdrop-filter: blur(8px); }
+
+    #partNotifs { position: fixed; top: 120px; left: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; pointer-events: none; }
+    .part-notif { background: rgba(34,197,94,0.9); color: white; padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(34,197,94,0.4); animation: slideInLeft 0.3s ease-out; }
+    @keyframes slideInLeft { from { transform: translateX(-100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    #tooltip { position: fixed; pointer-events: none; z-index: 100; background: rgba(15, 23, 42, 0.95); border: 2px solid #60a5fa; border-radius: 12px; padding: 12px 16px; min-width: 220px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; font-size: 13px; transform: translate(15px, 15px); backdrop-filter: blur(4px); }
+    #tooltip h4 { color: #60a5fa; font-size: 15px; margin-bottom: 8px; }
+    #tooltip .spec { display: flex; justify-content: space-between; margin-bottom: 4px; color: #cbd5e1; }
+    #tooltip .spec span:last-child { color: #fff; font-weight: bold; }
+    #tooltip .price { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); color: #4ade80; font-weight: bold; font-size: 16px; text-align: center; }
+
+    #shopBtn, #inventoryBtn { position: fixed; top: 15px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border: none; padding: 12px 24px; border-radius: 14px; font-size: 15px; font-weight: bold; cursor: pointer; z-index: 10; box-shadow: 0 6px 20px rgba(139,92,246,0.4); transition: transform 0.15s; }
+    #shopBtn { right: 20px; }
+    #inventoryBtn { left: 20px; background: linear-gradient(135deg, #f59e0b, #d97706); }
+    #shopBtn:hover, #inventoryBtn:hover { transform: scale(1.05); }
+
+    #shop, #inventoryPanel { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(8px); }
+    #shop.show, #inventoryPanel.show { display: flex; }
+    .panel { background: linear-gradient(135deg, #1e1b4b, #0f172a); border: 2px solid #8b5cf6; border-radius: 24px; padding: 30px 40px; max-width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 80px rgba(139,92,246,0.4); }
+    .panel h2 { color: #c4b5fd; font-size: 28px; margin-bottom: 20px; text-align: center; }
+    .money { text-align: center; color: #4ade80; font-size: 18px; margin-bottom: 20px; font-weight: bold; }
+
+    .item { display: flex; align-items: center; gap: 16px; background: rgba(255,255,255,0.05); border: 2px solid rgba(139,92,246,0.3); border-radius: 14px; padding: 16px 20px; margin-bottom: 12px; }
+    .item .icon { font-size: 40px; }
+    .item .info { flex: 1; }
+    .item .info h3 { font-size: 16px; color: #c4b5fd; margin-bottom: 4px; }
+    .item .info p { font-size: 13px; color: #94a3b8; }
+    .item .count { font-size: 14px; font-weight: bold; color: #4ade80; min-width: 40px; text-align: center; }
+    .item button { padding: 10px 20px; font-size: 14px; font-weight: bold; background: #22c55e; color: white; border: none; border-radius: 10px; cursor: pointer; min-width: 100px; }
+    .item button:disabled { background: #475569; cursor: not-allowed; opacity: 0.6; }
+    .close-btn { display: block; margin: 20px auto 0; padding: 12px 36px; font-size: 16px; font-weight: bold; background: #ef4444; color: white; border: none; border-radius: 12px; cursor: pointer; }
+
+    #buyerPanel { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 60; backdrop-filter: blur(10px); }
+    #buyerPanel.show { display: flex; }
+    #buyerPanel .box { background: linear-gradient(135deg, #0f172a, #1e293b); border: 2px solid #fbbf24; border-radius: 24px; padding: 30px 40px; text-align: center; max-width: 800px; width: 90%; box-shadow: 0 20px 80px rgba(251,191,36,0.3); animation: pop 0.3s ease-out; }
+    @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    
+    #buyerPanel h2 { font-size: 26px; margin-bottom: 15px; color: #fbbf24; }
+    #buyerPanel p { font-size: 16px; color: #cbd5e1; margin-bottom: 20px; font-style: italic; }
+    
+    .choice-row { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; }
+    .choice-card { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; cursor: pointer; transition: 0.2s; width: 140px; display: flex; flex-direction: column; align-items: center; position: relative; }
+    .choice-card:hover { background: rgba(251,191,36,0.1); border-color: #fbbf24; transform: translateY(-5px); }
+    .choice-card .icon { font-size: 60px; margin-bottom: 10px; }
+    .choice-card .name { font-size: 14px; font-weight: bold; color: #fff; }
+    .choice-card .match-badge { position: absolute; top: -10px; right: -10px; background: #22c55e; color: white; font-size: 12px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
+    .choice-card.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(1); }
+
+    #specsArea { background: rgba(0,0,0,0.4); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: left; display: none; border: 1px solid rgba(96,165,250,0.3); }
+    #specsArea.show { display: block; }
+    #specsArea h3 { color: #60a5fa; margin-bottom: 10px; }
+    .spec-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 15px; }
+    .spec-row span:first-child { color: #94a3b8; }
+    .spec-row span:last-child { font-weight: bold; color: #fff; }
+    
+    .buyer-buttons { display: flex; gap: 15px; justify-content: center; }
+    .buyer-buttons button { padding: 14px 30px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; }
+    .btn-accept { background: #22c55e; color: white; }
+    .btn-refuse { background: #ef4444; color: white; }
+    .btn-cancel { background: #475569; color: white; }
+
+    #repairBox { position: fixed; top: 110px; left: 20px; background: rgba(10,15,25,0.96); border: 2px solid #3b82f6; border-radius: 16px; padding: 18px 22px; min-width: 340px; display: none; z-index: 10; backdrop-filter: blur(12px); }
+    #repairBox h3 { color: #60a5fa; font-size: 17px; margin-bottom: 4px; }
+    #repairBox .client { font-size: 13px; color: #94a3b8; margin-bottom: 12px; }
+    .parts-needed { background: rgba(239,68,68,0.1); border: 1px solid #ef4444; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; }
+    .parts-needed.ok { background: rgba(34,197,94,0.1); border-color: #22c55e; }
+    .step { padding: 10px 12px; margin-bottom: 6px; border-radius: 10px; background: rgba(255,255,255,0.05); border-left: 3px solid transparent; font-size: 14px; display: flex; gap: 10px; align-items: center; }
+    .step.done { opacity: 0.5; border-left-color: #22c55e; text-decoration: line-through; }
+    .step.current { border-left-color: #fbbf24; background: rgba(251,191,36,0.15); font-weight: bold; }
+    .step .cnt { margin-left: auto; font-size: 12px; color: #94a3b8; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 6px; }
+
+    #toolbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); background: linear-gradient(180deg, rgba(20,25,45,0.95), rgba(10,15,25,0.98)); padding: 16px 24px; border-radius: 22px 22px 0 0; display: none; gap: 12px; z-index: 10; border: 1px solid rgba(96,165,250,0.2); backdrop-filter: blur(12px); }
+    .tool { width: 76px; height: 84px; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 32px; transition: all 0.15s; }
+    .tool:hover { background: rgba(59,130,246,0.2); border-color: #3b82f6; transform: translateY(-4px); }
+    .tool.sel { background: rgba(34,197,94,0.2); border-color: #22c55e; box-shadow: 0 0 20px rgba(34,197,94,0.4); transform: translateY(-4px); }
+    .tool .lbl { font-size: 10px; margin-top: 4px; color: #cbd5e1; }
+
+    #miniGame { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 40; backdrop-filter: blur(6px); }
+    #miniGame.show { display: flex; }
+    #miniGame .header { color: #60a5fa; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
+    #miniGame .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
+    #miniGame .game-area { position: relative; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 60px rgba(59,130,246,0.4); }
+    #miniGame .timer-bar { width: 400px; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; margin-top: 20px; overflow: hidden; }
+    #miniGame .timer-fill { height: 100%; width: 100%; background: #fbbf24; transition: width 0.05s linear; }
+    #miniGame .result { font-size: 28px; font-weight: bold; margin-top: 20px; }
+    #miniGame .result.good { color: #4ade80; } #miniGame .result.bad { color: #ef4444; }
+
+    #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(8px); }
+    #modal.show { display: flex; }
+    #modal .box { background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid #22c55e; border-radius: 24px; padding: 40px 60px; text-align: center; max-width: 90vw; box-shadow: 0 20px 80px rgba(34,197,94,0.3); animation: pop 0.3s ease-out; }
+    #modal h2 { font-size: 32px; margin-bottom: 12px; color: #4ade80; }
+    #modal p { color: #cbd5e1; margin-bottom: 15px; font-size: 16px; }
+    #modal .price { font-size: 36px; color: #4ade80; font-weight: bold; margin: 20px 0; }
+    #modal button { padding: 14px 44px; font-size: 17px; font-weight: bold; background: #22c55e; color: white; border: none; border-radius: 12px; cursor: pointer; margin-top: 10px; }
+    #modal.err .box { border-color: #ef4444; box-shadow: 0 20px 80px rgba(239,68,68,0.3); }
+    #modal.err h2 { color: #ef4444; } #modal.err button { background: #ef4444; }
+
+    #error { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); background: #dc2626; padding: 15px 25px; border-radius: 10px; z-index: 100; display: none; max-width: 90vw; font-size: 14px; white-space: pre-wrap; }
+
+    #deliveryNotif { position: fixed; top: 120px; right: 20px; background: linear-gradient(135deg, #f59e0b, #d97706); padding: 12px 24px; border-radius: 12px; font-size: 15px; font-weight: bold; color: white; z-index: 60; box-shadow: 0 6px 20px rgba(245,158,11,0.4); display: none; animation: slideIn 0.5s ease-out; }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    #reviews { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; pointer-events: none; }
+    .review { background: rgba(10,15,25,0.9); border: 2px solid #22c55e; border-radius: 12px; padding: 12px 20px; max-width: 350px; box-shadow: 0 8px 20px rgba(0,0,0,0.5); animation: slideInRight 0.5s ease-out; font-size: 14px; }
+    .review.bad { border-color: #ef4444; }
+    .review .stars { color: #fbbf24; font-size: 18px; margin-bottom: 5px; }
+    .review .name { font-weight: bold; color: #cbd5e1; margin-bottom: 3px; }
+    .review .text { color: #94a3b8; }
+    @keyframes slideInRight { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    #endScreen { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(10px); }
+    #endScreen.show { display: flex; }
+    #endScreen h1 { font-size: 64px; color: #fbbf24; margin-bottom: 20px; text-shadow: 0 0 30px rgba(251,191,36,0.5); }
+    #endScreen p { font-size: 24px; color: #cbd5e1; margin-bottom: 40px; text-align: center; }
+    #endScreen button { padding: 18px 60px; font-size: 22px; font-weight: bold; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 10px 30px rgba(34,197,94,0.4); }
+
+    #tutorial { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 300; backdrop-filter: blur(8px); }
+    #tutorial .box { background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid #60a5fa; border-radius: 24px; padding: 40px; max-width: 600px; text-align: left; box-shadow: 0 20px 80px rgba(59,130,246,0.3); }
+    #tutorial h2 { color: #60a5fa; font-size: 28px; margin-bottom: 20px; text-align: center; }
+    #tutorial p { color: #cbd5e1; font-size: 16px; margin-bottom: 15px; line-height: 1.5; }
+    #tutorial b { color: #fbbf24; }
+    #tutorial button { display: block; margin: 20px auto 0; padding: 14px 40px; font-size: 18px; font-weight: bold; background: #22c55e; color: white; border: none; border-radius: 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="tutorial">
+    <div class="box">
+        <h2>Добро пожаловать!</h2>
+        <p>Вы — новый сотрудник сервисного центра. Ваша задача: <b>чинить технику</b> и <b>продавать товары</b>.</p>
+        <p>1. Клиенты с поломками ждут перед стойкой. Кликните по ним, чтобы перейти в <b>Мастерскую</b>.</p>
+        <p>2. В мастерской выбирайте инструмент и выполняйте <b>мини-игру</b>.</p>
+        <p>3. Покупатели (со значком 💬) хотят купить технику. Кликните, чтобы продать.</p>
+        <p>4. Пополняйте запасы в <b>Складе</b>.</p>
+        <p>5. Ваша выручка копится в кассе. В конце смены придет Шеф и выдаст вам <b>зарплату</b> (5-15к)!</p>
+        <button onclick="startGame()">Начать работу</button>
+    </div>
+</div>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+    <div>💰 <span class="g" id="money">0</span>₽</div>
+    <div>👥 <span class="b" id="progress">0</span> / 10</div>
+    <div>💵 Выручка: <span class="y" id="shiftEarnings">0</span>₽</div>
+</div>
+
+<button id="shopBtn">📦 Склад (Ремонт)</button>
+<button id="inventoryBtn">🏪 Витрина</button>
+
+<div id="title">🏢 Ресепшн</div>
+
+<div id="hint">Наведи на технику для характеристик. Кликай на 💬 чтобы продать, на клиента — чтобы починить.</div>
+<div id="cameraHint">🖱️ Зажми ЛКМ — вращать камеру</div>
+
+<div id="deliveryNotif">🚚 Приехала доставка запчастей!</div>
+<div id="partNotifs"></div>
+
+<div id="tooltip">
+    <h4 id="ttTitle">Название</h4>
+    <div id="ttSpecs"></div>
+    <div class="price" id="ttPrice">0₽</div>
+</div>
+
+<div id="buyerPanel">
+    <div class="box">
+        <h2>💬 Покупатель</h2>
+        <p id="buyerText">«Я ищу кое-что из техники. Можете предложить?»</p>
+        <div class="choice-row" id="choiceRow"></div>
+        <div id="specsArea">
+            <h3 id="specsTitle">Характеристики</h3>
+            <div id="specsList"></div>
+            <div style="margin-top:15px; text-align:center; color:#fbbf24; font-weight:bold; font-size:20px;" id="specsPrice"></div>
+        </div>
+        <div class="buyer-buttons">
+            <button class="btn-refuse" id="btnRefuse" style="display:none;">Отказаться</button>
+            <button class="btn-accept" id="btnAccept" style="display:none;">Продать</button>
+            <button class="btn-cancel" id="btnCancel">Отойти</button>
+        </div>
+    </div>
+</div>
+
+<div id="shop">
+    <div class="panel">
+        <h2>📦 Склад запчастей</h2>
+        <div class="money">Ваши деньги: <span id="shopMoney">0</span>₽</div>
+        <div id="upgradeList"></div>
+        <button class="close-btn" id="closeShop">Закрыть</button>
+    </div>
+</div>
+
+<div id="inventoryPanel">
+    <div class="panel">
+        <h2>🏪 Витрина техники</h2>
+        <div class="money">Цены и характеристики.</div>
+        <div id="inventoryList"></div>
+        <button class="close-btn" id="closeInventory">Закрыть</button>
+    </div>
+</div>
+
+<div id="repairBox">
+    <h3 id="repTitle">Ремонт</h3>
+    <div class="client" id="repClient"></div>
+    <div id="partsNeeded" class="parts-needed"></div>
+    <div id="repSteps"></div>
+</div>
+
+<div id="toolbar"></div>
+
+<div id="miniGame">
+    <div class="header" id="mgHeader">Попади в зону!</div>
+    <div class="subtitle" id="mgSub">Кликай, когда указатель в зелёной зоне</div>
+    <canvas id="mgCanvas" width="500" height="300" class="game-area"></canvas>
+    <div class="timer-bar"><div class="timer-fill" id="mgTimer"></div></div>
+    <div class="result" id="mgResult"></div>
+</div>
+
+<div id="modal">
+    <div class="box">
+        <h2 id="mTitle">Готово!</h2>
+        <p id="mText"></p>
+        <div class="price" id="mPrice"></div>
+        <button id="mBtn">Продолжить</button>
+    </div>
+</div>
+
+<div id="reviews"></div>
+<div id="error"></div>
+
+<div id="endScreen">
+    <h1>🎉 СМЕНА ЗАВЕРШЕНА! 🎉</h1>
+    <p id="endText">Шеф выдал вам зарплату и ушёл. Вы отлично поработали!</p>
+    <button onclick="restartGame()">Новая смена</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+
+window.addEventListener('error', function(e) {
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').textContent = 'ОШИБКА: ' + e.message;
+});
+
+if (typeof THREE === 'undefined') {
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').textContent = 'Three.js не загрузился';
+    throw new Error('No THREE');
+}
+
+// ==================== ДАННЫЕ ====================
+var NAMES_DATA = [
+    { name: 'Аня', gender: 'female' }, { name: 'Борис', gender: 'male' },
+    { name: 'Вера', gender: 'female' }, { name: 'Гена', gender: 'male' },
+    { name: 'Дима', gender: 'male' }, { name: 'Ева', gender: 'female' },
+    { name: 'Женя', gender: 'male' }, { name: 'Зина', gender: 'female' },
+    { name: 'Игорь', gender: 'male' }, { name: 'Костя', gender: 'male' },
+    { name: 'Лена', gender: 'female' }, { name: 'Миша', gender: 'male' },
+    { name: 'Оля', gender: 'female' }, { name: 'Петя', gender: 'male' },
+    { name: 'Катя', gender: 'female' }, { name: 'Саша', gender: 'male' }
+];
+
+var WISHES = [
+    { text: 'Мне нужен мощный компьютер для игр.', match: ['pc_gaming'] },
+    { text: 'Ищу ноутбук для работы с тяжелыми программами.', match: ['laptop_ultra'] },
+    { text: 'Нужен планшет для рисования.', match: ['tablet_pro'] },
+    { text: 'Хочу недорогой смартфон для звонков.', match: ['phone_y'] },
+    { text: 'Ищу топовый флагманский смартфон.', match: ['phone_x'] },
+    { text: 'Мне нужен хороший монитор для работы.', match: ['monitor_4k'] },
+    { text: 'Ищу механическую клавиатуру.', match: ['keyboard_mech'] }
+];
+
+var DEFAULT_INVENTORY = { screen_phone: 2, battery_phone: 2, screen_tablet: 1, battery_tablet: 1, screen_laptop: 1, battery_laptop: 1, cpu: 1, gpu: 1 };
+var INVENTORY = JSON.parse(JSON.stringify(DEFAULT_INVENTORY));
+
+var SHOP_STOCK = [
+    { id: 'phone_x', name: 'Смартфон X', icon: '📱', basePrice: 30000, specs: { 'Процессор': 'A15 Bionic', 'ОЗУ': '6 ГБ', 'Экран': '6.1" OLED', 'Память': '128 ГБ' }, shelfPos: { x: -7.5, y: 1.15, z: -2 }, category: 'phone' },
+    { id: 'phone_y', name: 'Смартфон Y', icon: '📱', basePrice: 20000, specs: { 'Процессор': 'Snapdragon 8 Gen 1', 'ОЗУ': '8 ГБ', 'Экран': '6.5" AMOLED', 'Память': '256 ГБ' }, shelfPos: { x: -7.5, y: 2.15, z: -2 }, category: 'phone' },
+    { id: 'tablet_pro', name: 'Планшет Pro', icon: '💻', basePrice: 45000, specs: { 'Процессор': 'M1', 'ОЗУ': '8 ГБ', 'Экран': '11" Liquid Retina', 'Память': '256 ГБ' }, shelfPos: { x: -7.5, y: 1.15, z: 2 }, category: 'tablet' },
+    { id: 'laptop_ultra', name: 'Ноутбук Ultra', icon: '💻', basePrice: 80000, specs: { 'Процессор': 'Intel i7-12700H', 'ОЗУ': '16 ГБ', 'Экран': '15.6" IPS 144Hz', 'Видеокарта': 'RTX 3060' }, shelfPos: { x: -7.5, y: 2.15, z: 2 }, category: 'laptop' },
+    { id: 'pc_gaming', name: 'ПК Gaming', icon: '🖥️', basePrice: 120000, specs: { 'Процессор': 'Ryzen 7 5800X', 'ОЗУ': '32 ГБ', 'Видеокарта': 'RTX 3080', 'SSD': '1 ТБ' }, shelfPos: { x: 7.5, y: 1.15, z: 0 }, category: 'pc' },
+    { id: 'monitor_4k', name: 'Монитор 4K', icon: '🖥️', basePrice: 25000, specs: { 'Диагональ': '27"', 'Разрешение': '4K', 'Матрица': 'IPS', 'Частота': '144 Гц' }, shelfPos: { x: 7.5, y: 2.15, z: 0 }, category: 'monitor' },
+    { id: 'keyboard_mech', name: 'Клавиатура', icon: '⌨️', basePrice: 8000, specs: { 'Тип': 'Механическая', 'Переключатели': 'Red', 'Подсветка': 'RGB', 'Формат': 'Full-size' }, shelfPos: { x: 7.5, y: 1.15, z: 2 }, category: 'keyboard' }
+];
+
+var SHOP_ITEMS = [
+    { id: 'screen_phone', name: 'Экран для смартфона', icon: '📱', price: 1000 },
+    { id: 'battery_phone', name: 'Батарея для смартфона', icon: '🔋', price: 800 },
+    { id: 'screen_tablet', name: 'Экран для планшета', icon: '📟', price: 1500 },
+    { id: 'battery_tablet', name: 'Батарея для планшета', icon: '🔋', price: 1200 },
+    { id: 'screen_laptop', name: 'Матрица для ноутбука', icon: '💻', price: 2500 },
+    { id: 'battery_laptop', name: 'Батарея для ноутбука', icon: '🔋', price: 2000 },
+    { id: 'cpu', name: 'Процессор', icon: '⚙️', price: 3000 },
+    { id: 'gpu', name: 'Видеокарта', icon: '🎮', price: 4000 }
+];
+
+var REPAIRS = [
+    { deviceType: 'phone', name: 'Замена экрана', price: 3000, requiredPart: 'screen_phone', steps: [{ text: 'Открутить винты', icon: '🔧', tool: 'screwdriver', count: 4, miniGame: 'aim' }, { text: 'Поддеть экран', icon: '🪝', tool: 'suction', count: 1, miniGame: 'rotate' }, { text: 'Отсоединить шлейф', icon: '🔌', tool: 'spudger', count: 1, miniGame: 'rhythm' }, { text: 'Поставить новый', icon: '✨', tool: 'spudger', count: 1, miniGame: 'aim' }] },
+    { deviceType: 'phone', name: 'Замена батареи', price: 2200, requiredPart: 'battery_phone', steps: [{ text: 'Открутить винты', icon: '🔧', tool: 'screwdriver', count: 2, miniGame: 'aim' }, { text: 'Открыть корпус', icon: '🪝', tool: 'suction', count: 1, miniGame: 'hold' }, { text: 'Заменить батарею', icon: '🔋', tool: 'spudger', count: 1, miniGame: 'rhythm' }] },
+    { deviceType: 'tablet', name: 'Замена экрана', price: 4500, requiredPart: 'screen_tablet', steps: [{ text: 'Прогреть края', icon: '💨', tool: 'air', count: 2, miniGame: 'hold' }, { text: 'Поддеть экран', icon: '🪝', tool: 'suction', count: 1, miniGame: 'rotate' }, { text: 'Отсоединить шлейф', icon: '🔌', tool: 'spudger', count: 1, miniGame: 'rhythm' }, { text: 'Поставить новый', icon: '✨', tool: 'spudger', count: 1, miniGame: 'aim' }] },
+    { deviceType: 'tablet', name: 'Замена батареи', price: 3500, requiredPart: 'battery_tablet', steps: [{ text: 'Открыть корпус', icon: '🪝', tool: 'suction', count: 1, miniGame: 'hold' }, { text: 'Заменить батарею', icon: '🔋', tool: 'spudger', count: 1, miniGame: 'rhythm' }] },
+    { deviceType: 'laptop', name: 'Замена матрицы', price: 6000, requiredPart: 'screen_laptop', steps: [{ text: 'Снять рамку', icon: '🔧', tool: 'screwdriver', count: 2, miniGame: 'aim' }, { text: 'Отсоединить шлейф', icon: '🔌', tool: 'spudger', count: 1, miniGame: 'rhythm' }, { text: 'Поставить новую', icon: '✨', tool: 'spudger', count: 1, miniGame: 'aim' }] },
+    { deviceType: 'laptop', name: 'Замена батареи', price: 4000, requiredPart: 'battery_laptop', steps: [{ text: 'Открутить крышку', icon: '🔧', tool: 'screwdriver', count: 4, miniGame: 'aim' }, { text: 'Отсоединить батарею', icon: '🔌', tool: 'spudger', count: 1, miniGame: 'hold' }, { text: 'Поставить новую', icon: '✨', tool: 'spudger', count: 1, miniGame: 'rhythm' }] },
+    { deviceType: 'pc', name: 'Апгрейд процессора', price: 5000, requiredPart: 'cpu', steps: [{ text: 'Снять кулер', icon: '🔧', tool: 'screwdriver', count: 2, miniGame: 'aim' }, { text: 'Заменить процессор', icon: '⚙️', tool: 'spudger', count: 1, miniGame: 'rhythm' }, { text: 'Поставить кулер', icon: '🔧', tool: 'screwdriver', count: 2, miniGame: 'hold' }] },
+    { deviceType: 'pc', name: 'Замена видеокарты', price: 7000, requiredPart: 'gpu', steps: [{ text: 'Открутить винты', icon: '🔧', tool: 'screwdriver', count: 2, miniGame: 'aim' }, { text: 'Вынуть видеокарту', icon: '🪝', tool: 'suction', count: 1, miniGame: 'hold' }, { text: 'Поставить новую', icon: '✨', tool: 'spudger', count: 1, miniGame: 'rhythm' }] }
+];
+
+var DEVICES = [
+    { id: 'phone', name: 'Смартфон', icon: '📱', modelType: 'phone' },
+    { id: 'tablet', name: 'Планшет', icon: '💻', modelType: 'tablet' },
+    { id: 'laptop', name: 'Ноутбук', icon: '💻', modelType: 'laptop' },
+    { id: 'pc', name: 'Системный блок', icon: '🖥️', modelType: 'pc' }
+];
+
+var TOOLS = [
+    { id: 'screwdriver', icon: '🔧', label: 'Отвёртка' },
+    { id: 'suction', icon: '🪝', label: 'Присоска' },
+    { id: 'spudger', icon: '🔌', label: 'Медиатор' },
+    { id: 'air', icon: '💨', label: 'Воздух' },
+    { id: 'cloth', icon: '🧽', label: 'Тряпка' }
+];
+
+// ==================== СОСТОЯНИЕ ====================
+var money = 10000;
+var shiftEarnings = 0;
+var progress = 0;
+var TARGET_CLIENTS = 10;
+var gameOver = false;
+var mode = 'lobby';
+var customers = [];
+var currentRepair = null;
+var customerId = 0;
+var spawnTimer = 0;
+var gameTime = 0;
+var gamePaused = false;
+var shiftNumber = 1;
+
+var currentBuyer = null;
+var currentBuyerChoices = [];
+var currentWish = null;
+var chosenItem = null;
+var refusedCount = 0;
+
+var deliveryTimer = 0;
+var DELIVERY_INTERVAL = 120;
+var deliveryState = 'idle';
+var deliveryTruck = null;
+var deliveryBoxes = [];
+var deliveryPeople = [];
+
+var scene, camera, renderer, clock;
+var raycaster, mouseVec;
+var lobbyGroup, workshopGroup;
+var deviceGroup;
+var handGroup, toolMesh;
+var currentTool = null;
+var cityCars = [];
+var cityPeople = [];
+
+var QUEUE_SLOTS = [{ x: 0, z: 1.5 }, { x: 0, z: 2.5 }, { x: 0, z: 3.5 }, { x: 0, z: 4.5 }];
+var BUYER_SLOTS = [{ x: -5.0, z: -2.0 }, { x: -5.0, z: 0.0 }, { x: -5.0, z: 2.0 }];
+
+var cameraState = {
+    yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0,
+    isDragging: false, lastX: 0, lastY: 0,
+    targetX: 0, targetY: 1.6, targetZ: -1.5,
+    currentX: 0, currentY: 1.6, currentZ: -1.5
+};
+
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
+function startGame() {
+    document.getElementById('tutorial').style.display = 'none';
+    initThree();
+    loadGame();
+    updateHUD();
+    requestAnimationFrame(loop);
+    if (renderer) renderer.render(scene, camera);
+}
+
+function saveGame() {
+    try {
+        var state = { money: money, progress: progress, inventory: INVENTORY, shiftNumber: shiftNumber };
+        localStorage.setItem('serviceCenterSave', JSON.stringify(state));
+    } catch(e) {}
+}
+
+function loadGame() {
+    try {
+        var saved = localStorage.getItem('serviceCenterSave');
+        if (saved) {
+            var state = JSON.parse(saved);
+            money = state.money || 10000;
+            progress = state.progress || 0;
+            if (state.inventory) INVENTORY = state.inventory;
+            shiftNumber = state.shiftNumber || 1;
+        }
+    } catch(e) {}
+    buildShopList();
+    buildInventoryList();
+}
+
+function restartGame() {
+    shiftNumber++;
+    shiftEarnings = 0;
+    progress = 0;
+    gameOver = false;
+    mode = 'lobby';
+    currentRepair = null;
+    
+    customers.forEach(function(c) {
+        lobbyGroup.remove(c.model);
+        c.model.traverse(function(obj) {
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (Array.isArray(obj.material)) obj.material.forEach(function(m) { m.dispose(); });
+                else obj.material.dispose();
+            }
+        });
+    });
+    customers = [];
+    
+    document.getElementById('endScreen').classList.remove('show');
+    document.getElementById('repairBox').style.display = 'none';
+    document.getElementById('toolbar').style.display = 'none';
+    document.getElementById('modal').classList.remove('show');
+    document.getElementById('buyerPanel').classList.remove('show');
+    
+    lobbyGroup.visible = true;
+    workshopGroup.visible = false;
+    handGroup.visible = false;
+    gamePaused = false;
+    cameraState.yaw = 0;
+    cameraState.pitch = 0;
+    cameraState.targetYaw = 0;
+    cameraState.targetPitch = 0;
+    cameraState.targetX = 0;
+    cameraState.targetY = 1.6;
+    cameraState.targetZ = -1.5;
+    cameraState.currentX = 0;
+    cameraState.currentY = 1.6;
+    cameraState.currentZ = -1.5;
+    updateCamera();
+    
+    document.getElementById('title').textContent = '🏢 Ресепшн';
+    document.getElementById('title').classList.remove('w');
+    document.getElementById('hint').style.display = 'block';
+    document.getElementById('cameraHint').style.display = 'block';
+    
+    applyTimeOfDay();
+    updateHUD();
+    saveGame();
+}
+
+function applyTimeOfDay() {
+    if (!scene) return;
+    var skyColor, lightColor, lightIntensity, ambientColor, ambientIntensity;
+    
+    if (shiftNumber % 3 === 1) {
+        skyColor = 0x87ceeb; lightColor = 0xfff5e0; lightIntensity = 1.2;
+        ambientColor = 0xffffff; ambientIntensity = 0.65;
+    } else if (shiftNumber % 3 === 2) {
+        skyColor = 0xff8c42; lightColor = 0xffaa55; lightIntensity = 0.8;
+        ambientColor = 0xffa07a; ambientIntensity = 0.5;
+    } else {
+        skyColor = 0x0f172a; lightColor = 0x1e3a8a; lightIntensity = 0.3;
+        ambientColor = 0x3b82f6; ambientIntensity = 0.3;
+    }
+    
+    scene.background = new THREE.Color(skyColor);
+    scene.fog = new THREE.Fog(skyColor, 25, 60);
+    
+    if (window.sunLight) {
+        window.sunLight.color.setHex(lightColor);
+        window.sunLight.intensity = lightIntensity;
+    }
+    if (window.ambientLight) {
+        window.ambientLight.color.setHex(ambientColor);
+        window.ambientLight.intensity = ambientIntensity;
+    }
+}
+
+function initThree() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.Fog(0x87ceeb, 25, 60);
+
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.6, -1.5);
+
+    var canvas = document.getElementById('c');
+    renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+
+    clock = new THREE.Clock();
+    raycaster = new THREE.Raycaster();
+    mouseVec = new THREE.Vector2();
+
+    window.ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(window.ambientLight);
+    
+    window.sunLight = new THREE.DirectionalLight(0xfff5e0, 1.2);
+    window.sunLight.position.set(10, 15, 10);
+    window.sunLight.castShadow = true;
+    window.sunLight.shadow.mapSize.width = 2048;
+    window.sunLight.shadow.mapSize.height = 2048;
+    window.sunLight.shadow.camera.left = -20;
+    window.sunLight.shadow.camera.right = 20;
+    window.sunLight.shadow.camera.top = 20;
+    window.sunLight.shadow.camera.bottom = -20;
+    window.sunLight.shadow.camera.far = 50;
+    scene.add(window.sunLight);
+
+    var techLight = new THREE.PointLight(0x3b82f6, 0.8, 10);
+    techLight.position.set(-3, 2, 0);
+    scene.add(techLight);
+
+    buildLobby();
+    buildWorkshop();
+    buildHandAndTools();
+
+    lobbyGroup.visible = true;
+    workshopGroup.visible = false;
+
+    applyTimeOfDay();
+    updateCamera();
+    buildShopList();
+    buildInventoryList();
+}
+
+function updateCamera() {
+    camera.position.set(cameraState.currentX, cameraState.currentY, cameraState.currentZ);
+    var yaw = cameraState.yaw;
+    var pitch = cameraState.pitch;
+    var dist = 5;
+    var targetX = cameraState.currentX + Math.sin(yaw) * Math.cos(pitch) * dist;
+    var targetY = cameraState.currentY + Math.sin(pitch) * dist;
+    var targetZ = cameraState.currentZ + Math.cos(yaw) * Math.cos(pitch) * dist;
+    camera.lookAt(targetX, targetY, targetZ);
+}
+
+function buildLobby() {
+    lobbyGroup = new THREE.Group();
+    scene.add(lobbyGroup);
+
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.2 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    lobbyGroup.add(floor);
+
+    for (var i = -10; i <= 10; i++) {
+        var line1 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.001, 20), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+        line1.position.set(i, 0.001, 0);
+        lobbyGroup.add(line1);
+        var line2 = new THREE.Mesh(new THREE.BoxGeometry(20, 0.001, 0.02), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+        line2.position.set(0, 0.001, i);
+        lobbyGroup.add(line2);
+    }
+
+    var ceiling = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.y = 4;
+    lobbyGroup.add(ceiling);
+
+    buildShowcase(7);
+    var leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 20), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+    leftWall.position.set(-8, 2, 0);
+    lobbyGroup.add(leftWall);
+    var rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 20), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+    rightWall.position.set(8, 2, 0);
+    lobbyGroup.add(rightWall);
+
+    buildTechShelves();
+
+    var counter = new THREE.Mesh(new THREE.BoxGeometry(5, 1, 0.8), new THREE.MeshStandardMaterial({ color: 0x8d6e63, roughness: 0.5 }));
+    counter.position.set(0, 0.5, -0.7);
+    counter.castShadow = true;
+    counter.receiveShadow = true;
+    lobbyGroup.add(counter);
+
+    var counterTop = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.1, 0.9), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+    counterTop.position.set(0, 1.05, -0.7);
+    counterTop.castShadow = true;
+    lobbyGroup.add(counterTop);
+
+    var rug = new THREE.Mesh(new THREE.PlaneGeometry(8, 5), new THREE.MeshStandardMaterial({ color: 0x1e40af }));
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(0, 0.02, 2.5);
+    rug.receiveShadow = true;
+    lobbyGroup.add(rug);
+
+    buildPlant(-3.5, 0, 6.2);
+    buildPlant(3.5, 0, 6.2);
+
+    buildCeilingLamp(-3, 3.9, 2);
+    buildCeilingLamp(3, 3.9, 2);
+    buildCeilingLamp(0, 3.9, 5);
+
+    buildTechOnCounter();
+    buildBoss();
+}
+
+function buildShowcase(zPos) {
+    var frameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.3 });
+    var glassMat = new THREE.MeshStandardMaterial({ color: 0x87ceeb, transparent: true, opacity: 0.15, roughness: 0.05, metalness: 0.9 });
+
+    var w = 16, h = 4;
+    lobbyGroup.add(makeBox(w, 0.15, 0.2, 0, h - 0.1, zPos, frameMat));
+    lobbyGroup.add(makeBox(w, 0.15, 0.2, 0, 0.1, zPos, frameMat));
+    lobbyGroup.add(makeBox(0.15, h, 0.2, -w/2 + 0.1, h/2, zPos, frameMat));
+    lobbyGroup.add(makeBox(0.15, h, 0.2, w/2 - 0.1, h/2, zPos, frameMat));
+    for (var i = 1; i < 4; i++) {
+        lobbyGroup.add(makeBox(0.1, h, 0.15, -w/2 + (w/4)*i, h/2, zPos, frameMat));
+    }
+
+    var glass = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.3, h - 0.3), glassMat);
+    glass.position.set(0, h/2, zPos + 0.02);
+    lobbyGroup.add(glass);
+
+    buildCityBehindWindow(zPos + 2);
+}
+
+function buildCityBehindWindow(zPos) {
+    var road = new THREE.Mesh(new THREE.PlaneGeometry(30, 4), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+    road.rotation.x = -Math.PI / 2;
+    road.position.set(0, -0.1, zPos);
+    lobbyGroup.add(road);
+
+    for (var i = -10; i <= 10; i++) {
+        var mark = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.1), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
+        mark.rotation.x = -Math.PI / 2;
+        mark.position.set(i * 1.5, 0, zPos);
+        lobbyGroup.add(mark);
+    }
+
+    var sidewalk = new THREE.Mesh(new THREE.PlaneGeometry(30, 2), new THREE.MeshStandardMaterial({ color: 0x64748b }));
+    sidewalk.rotation.x = -Math.PI / 2;
+    sidewalk.position.set(0, -0.05, zPos + 3);
+    lobbyGroup.add(sidewalk);
+
+    for (var b = 0; b < 8; b++) {
+        var bw = 1.5 + Math.random() * 2;
+        var bh = 4 + Math.random() * 6;
+        var building = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 1.5), new THREE.MeshStandardMaterial({ color: [0x475569, 0x334155, 0x64748b, 0x1e293b][b % 4] }));
+        building.position.set(-12 + b * 3.5, bh/2, zPos + 8);
+        lobbyGroup.add(building);
+
+        for (var wy = 0; wy < Math.floor(bh / 1.2); wy++) {
+            for (var wx = 0; wx < Math.floor(bw / 0.8); wx++) {
+                if (Math.random() > 0.4) {
+                    var window = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xfbbf24 : 0x60a5fa }));
+                    window.position.set(building.position.x - bw/2 + 0.5 + wx * 0.8, 1 + wy * 1.2, zPos + 8 - 0.76);
+                    lobbyGroup.add(window);
+                }
+            }
+        }
+    }
+
+    for (var f = -2; f <= 2; f++) {
+        var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3, 8), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+        pole.position.set(f * 6, 1.5, zPos + 3);
+        lobbyGroup.add(pole);
+        var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
+        lamp.position.set(f * 6, 3, zPos + 3);
+        lobbyGroup.add(lamp);
+    }
+
+    spawnCars(zPos);
+    spawnPeople(zPos);
+}
+
+function spawnCars(zPos) {
+    var colors = [0xef4444, 0x3b82f6, 0x22c55e, 0xfbbf24, 0xffffff, 0x111827, 0xa78bfa];
+    for (var i = 0; i < 3; i++) {
+        var carGroup = new THREE.Group();
+        var body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.6), new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)] }));
+        body.position.y = 0.3;
+        carGroup.add(body);
+
+        var cabin = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.5), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+        cabin.position.set(0.1, 0.6, 0);
+        carGroup.add(cabin);
+
+        var headlight = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.15), new THREE.MeshBasicMaterial({ color: 0xfff176 }));
+        headlight.position.set(0.6, 0.3, 0.2);
+        carGroup.add(headlight);
+        var headlight2 = headlight.clone();
+        headlight2.position.z = -0.2;
+        carGroup.add(headlight2);
+
+        for (var wx = -1; wx <= 1; wx += 2) {
+            for (var wz = -1; wz <= 1; wz += 2) {
+                var wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 12), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+                wheel.rotation.x = Math.PI / 2;
+                wheel.position.set(wx * 0.4, 0.12, wz * 0.25);
+                carGroup.add(wheel);
+            }
+        }
+
+        carGroup.position.set(-15 + i * 10, 0, zPos - 1 + Math.random());
+        carGroup.userData.speed = 1 + Math.random() * 2;
+        carGroup.userData.direction = Math.random() > 0.5 ? 1 : -1;
+        if (carGroup.userData.direction === -1) {
+            carGroup.rotation.y = Math.PI;
+            carGroup.position.z = zPos + 0.8;
+        }
+
+        lobbyGroup.add(carGroup);
+        cityCars.push(carGroup);
+    }
+}
+
+function spawnPeople(zPos) {
+    var shirtColors = [0xef4444, 0x3b82f6, 0x22c55e, 0xfbbf24, 0xa78bfa, 0xec4899];
+    for (var i = 0; i < 5; i++) {
+        var person = new THREE.Group();
+        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.5, 8), new THREE.MeshStandardMaterial({ color: shirtColors[Math.floor(Math.random() * shirtColors.length)] }));
+        body.position.y = 0.6;
+        person.add(body);
+        var head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfcd5b8 }));
+        head.position.y = 0.95;
+        person.add(head);
+
+        person.position.set(-12 + i * 5, 0, zPos + 3 + Math.random() * 0.5);
+        person.userData.speed = 0.5 + Math.random() * 0.8;
+        person.userData.direction = Math.random() > 0.5 ? 1 : -1;
+        lobbyGroup.add(person);
+        cityPeople.push(person);
+    }
+}
+
+function updateCity(dt) {
+    for (var i = 0; i < cityCars.length; i++) {
+        var car = cityCars[i];
+        car.position.x += car.userData.speed * car.userData.direction * dt;
+        if (car.userData.direction === 1 && car.position.x > 15) car.position.x = -15;
+        else if (car.userData.direction === -1 && car.position.x < -15) car.position.x = 15;
+    }
+    for (var j = 0; j < cityPeople.length; j++) {
+        var p = cityPeople[j];
+        p.position.x += p.userData.speed * p.userData.direction * dt;
+        if (p.userData.direction === 1 && p.position.x > 15) p.position.x = -15;
+        else if (p.userData.direction === -1 && p.position.x < -15) p.position.x = 15;
+    }
+}
+
+function buildTechShelves() {
+    var shelfMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+    for (var i = 0; i < 3; i++) {
+        var y = 1 + i * 1.0;
+        var shelf = new THREE.Mesh(new THREE.BoxGeometry(2, 0.05, 0.6), shelfMat);
+        shelf.position.set(-7.5, y, -2);
+        shelf.castShadow = true;
+        lobbyGroup.add(shelf);
+
+        var shelf2 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.05, 0.6), shelfMat);
+        shelf2.position.set(-7.5, y, 2);
+        shelf2.castShadow = true;
+        lobbyGroup.add(shelf2);
+    }
+
+    for (var j = 0; j < 2; j++) {
+        var y2 = 1 + j * 1.0;
+        var shelf3 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.05, 0.6), shelfMat);
+        shelf3.position.set(7.5, y2, 0);
+        shelf3.castShadow = true;
+        lobbyGroup.add(shelf3);
+    }
+
+    SHOP_STOCK.forEach(function(item) {
+        if (item.shelfPos) {
+            var model = createShopItemModel(item.id);
+            model.position.set(item.shelfPos.x, item.shelfPos.y, item.shelfPos.z);
+            if (item.shelfPos.x < 0) model.rotation.y = Math.PI / 2;
+            else model.rotation.y = -Math.PI / 2;
+            model.userData.isShopItem = true;
+            model.userData.itemRef = item;
+            lobbyGroup.add(model);
+            item.model = model;
+        }
+    });
+}
+
+function createShopItemModel(id) {
+    var g = new THREE.Group();
+    var techMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.3 });
+    var screenMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+
+    if (id === 'phone_x' || id === 'phone_y') {
+        var phone = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.35), techMat);
+        g.add(phone);
+        var screen = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.3), screenMat);
+        screen.rotation.x = -Math.PI / 2;
+        screen.position.y = 0.011;
+        g.add(screen);
+    } else if (id === 'tablet_pro') {
+        var tablet = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.02, 0.45), techMat);
+        g.add(tablet);
+        var screen2 = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.4), screenMat);
+        screen2.rotation.x = -Math.PI / 2;
+        screen2.position.y = 0.011;
+        g.add(screen2);
+    } else if (id === 'laptop_ultra') {
+        var base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.35), techMat);
+        base.position.y = 0.015;
+        g.add(base);
+        var lid = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.02), techMat);
+        lid.position.set(0, 0.2, -0.16);
+        lid.rotation.x = -1.2;
+        g.add(lid);
+        var screen3 = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.3), screenMat);
+        screen3.position.set(0, 0.2, -0.14);
+        screen3.rotation.x = -1.2;
+        g.add(screen3);
+    } else if (id === 'pc_gaming') {
+        var pc = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, 0.4), techMat);
+        pc.position.y = 0.225;
+        g.add(pc);
+        var led = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.4), new THREE.MeshBasicMaterial({ color: 0xa78bfa }));
+        led.position.set(0, 0.225, 0.201);
+        g.add(led);
+    } else if (id === 'monitor_4k') {
+        var monitor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.05), techMat);
+        monitor.position.y = 0.25;
+        g.add(monitor);
+        var screenM = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.3), screenMat);
+        screenM.position.set(0, 0.25, 0.03);
+        g.add(screenM);
+        var stand = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8), techMat);
+        stand.position.y = 0.075;
+        g.add(stand);
+        var baseM = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.15), techMat);
+        g.add(baseM);
+    } else if (id === 'keyboard_mech') {
+        var kb = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.03, 0.15), techMat);
+        kb.position.y = 0.015;
+        g.add(kb);
+        for (var kRow = 0; kRow < 2; kRow++) {
+            for (var kCol = 0; kCol < 6; kCol++) {
+                var key = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.01, 0.04), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+                key.position.set(-0.17 + kCol * 0.068, 0.035, -0.03 + kRow * 0.06);
+                g.add(key);
+            }
+        }
+    }
+
+    return g;
+}
+
+function buildTechOnCounter() {
+    var monitorBody = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.1), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+    monitorBody.position.set(2.0, 1.4, -0.7);
+    monitorBody.rotation.y = -0.4;
+    lobbyGroup.add(monitorBody);
+
+    var monitorScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.4), new THREE.MeshBasicMaterial({ color: 0x3b82f6 }));
+    monitorScreen.position.set(2.0, 1.4, -0.64);
+    monitorScreen.rotation.y = -0.4;
+    lobbyGroup.add(monitorScreen);
+
+    var stand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+    stand.position.set(2.0, 1.15, -0.7);
+    lobbyGroup.add(stand);
+
+    var keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.03, 0.2), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+    keyboard.position.set(2.0, 1.1, -0.4);
+    lobbyGroup.add(keyboard);
+}
+
+function buildBoss() {
+    var bossGroup = new THREE.Group();
+    var body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.4), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+    body.position.y = 0.9;
+    bossGroup.add(body);
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), new THREE.MeshStandardMaterial({ color: 0xfcd5b8 }));
+    head.position.y = 1.5;
+    bossGroup.add(head);
+    var hat = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 16), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+    hat.position.y = 1.65;
+    bossGroup.add(hat);
+    var hatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.2, 16), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+    hatTop.position.y = 1.75;
+    bossGroup.add(hatTop);
+
+    bossGroup.position.set(1.5, 0, -0.8);
+    bossGroup.rotation.y = -0.3;
+    bossGroup.visible = false;
+
+    lobbyGroup.add(bossGroup);
+    window.bossModel = bossGroup;
+}
+
+function buildPlant(x, y, z) {
+    var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.5, 16), new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.8 }));
+    pot.position.set(x, y + 0.25, z);
+    pot.castShadow = true;
+    lobbyGroup.add(pot);
+
+    for (var i = 0; i < 8; i++) {
+        var angle = (i / 8) * Math.PI * 2;
+        var leaf = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshStandardMaterial({ color: i % 2 ? 0x16a34a : 0x22c55e }));
+        leaf.scale.set(1, 1.5, 0.6);
+        leaf.position.set(x + Math.cos(angle) * 0.25, y + 0.8 + Math.random() * 0.2, z + Math.sin(angle) * 0.25);
+        leaf.rotation.y = angle;
+        lobbyGroup.add(leaf);
+    }
+}
+
+function buildCeilingLamp(x, y, z) {
+    var base = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 8), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+    base.position.set(x, y, z);
+    lobbyGroup.add(base);
+
+    var shade = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 0.15, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0xf8fafc, side: THREE.DoubleSide, emissive: 0xfef3c7, emissiveIntensity: 0.3 }));
+    shade.position.set(x, y - 0.15, z);
+    lobbyGroup.add(shade);
+
+    var light = new THREE.PointLight(0xfff5e0, 0.6, 6);
+    light.position.set(x, y - 0.3, z);
+    lobbyGroup.add(light);
+}
+
+function makeBox(w, h, d, x, y, z, mat) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    return m;
+}
+
+function buildWorkshop() {
+    workshopGroup = new THREE.Group();
+    scene.add(workshopGroup);
+
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    workshopGroup.add(floor);
+
+    var table = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.08, 1.5), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+    table.position.set(0, 0.9, -0.7);
+    table.receiveShadow = true;
+    workshopGroup.add(table);
+
+    for (var ix = -1; ix <= 1; ix += 2) {
+        for (var iz = -1; iz <= 1; iz += 2) {
+            var leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), new THREE.MeshStandardMaterial({ color: 0x451a03 }));
+            leg.position.set(ix * 1.1, 0.45, -0.7 + iz * 0.6);
+            workshopGroup.add(leg);
+        }
+    }
+
+    var wall = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+    wall.position.set(0, 2, -3);
+    workshopGroup.add(wall);
+
+    var lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+    lampBase.position.set(0, 2.4, -0.7);
+    workshopGroup.add(lampBase);
+
+    var lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.25, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0x334155, side: THREE.DoubleSide }));
+    lampShade.position.set(0, 2.3, -0.7);
+    workshopGroup.add(lampShade);
+
+    var lampLight = new THREE.PointLight(0xfff5e0, 1.5, 4);
+    lampLight.position.set(0, 2.2, -0.7);
+    workshopGroup.add(lampLight);
+
+    workshopGroup.visible = false;
+}
+
+function createDeviceModel(deviceId, repairColor) {
+    var g = new THREE.Group();
+
+    if (deviceId === 'phone' || deviceId === 'tablet') {
+        var scale = deviceId === 'tablet' ? 1.5 : 1.0;
+        var metalMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.9, roughness: 0.2 });
+        var darkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6 });
+        var screenMat = new THREE.MeshStandardMaterial({ color: repairColor, roughness: 0.1, metalness: 0.1 });
+        var boardMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.8 });
+        var batteryMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.6 });
+        var cableMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.7 });
+
+        var frame = new THREE.Mesh(new THREE.BoxGeometry(0.35 * scale, 0.01, 0.65 * scale), metalMat);
+        g.add(frame);
+
+        var internals = new THREE.Group();
+        internals.position.y = 0.005;
+        var board = new THREE.Mesh(new THREE.BoxGeometry(0.28 * scale, 0.005, 0.4 * scale), boardMat);
+        board.position.set(0, 0.002, -0.05 * scale);
+        internals.add(board);
+        var cpu = new THREE.Mesh(new THREE.BoxGeometry(0.05 * scale, 0.004, 0.05 * scale), darkMat);
+        cpu.position.set(0.06 * scale, 0.006, -0.1 * scale);
+        internals.add(cpu);
+        var battery = new THREE.Mesh(new THREE.BoxGeometry(0.16 * scale, 0.008, 0.24 * scale), batteryMat);
+        battery.position.set(-0.04 * scale, 0.006, 0.06 * scale);
+        internals.add(battery);
+        var cable = new THREE.Mesh(new THREE.BoxGeometry(0.02 * scale, 0.004, 0.15 * scale), cableMat);
+        cable.position.set(0.09 * scale, 0.006, -0.12 * scale);
+        internals.add(cable);
+        g.add(internals);
+
+        var screenGroup = new THREE.Group();
+        var screenBase = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.008, 0.63 * scale), darkMat);
+        screenGroup.add(screenBase);
+        var display = new THREE.Mesh(new THREE.PlaneGeometry(0.3 * scale, 0.56 * scale), screenMat);
+        display.rotation.x = -Math.PI / 2;
+        display.position.y = 0.005;
+        screenGroup.add(display);
+
+        var homeBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * scale, 0.02 * scale, 0.002, 12), metalMat);
+        homeBtn.position.set(0, 0.006, 0.28 * scale);
+        screenGroup.add(homeBtn);
+
+        var screws = [];
+        for (var s = 0; s < 4; s++) {
+            var screw = new THREE.Mesh(new THREE.CylinderGeometry(0.008 * scale, 0.008 * scale, 0.002, 8), new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 1, roughness: 0.1 }));
+            screw.position.set((s % 2 === 0 ? -1 : 1) * 0.14 * scale, 0.005, (s < 2 ? -1 : 1) * 0.28 * scale);
+            screenGroup.add(screw);
+            screws.push(screw);
+        }
+
+        screenGroup.position.y = 0.022;
+        g.add(screenGroup);
+        g.userData = { screenGroup: screenGroup, screws: screws, screenDisplay: display };
+
+    } else if (deviceId === 'laptop') {
+        var bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.7, roughness: 0.3 });
+        var screenMat = new THREE.MeshStandardMaterial({ color: repairColor, roughness: 0.1, metalness: 0.1 });
+
+        var base = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.6), bodyMat);
+        base.position.y = 0.02;
+        g.add(base);
+
+        var keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.01, 0.3), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+        keyboard.position.set(0, 0.045, 0.05);
+        g.add(keyboard);
+
+        var screenGroup = new THREE.Group();
+        var lid = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.02), bodyMat);
+        lid.position.set(0, 0.3, 0);
+        screenGroup.add(lid);
+
+        var display = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), screenMat);
+        display.rotation.y = 0;
+        display.position.set(0, 0.3, 0.011);
+        screenGroup.add(display);
+
+        screenGroup.position.set(0, 0.04, -0.28);
+        screenGroup.rotation.x = -Math.PI / 2 + 0.3;
+        g.add(screenGroup);
+        g.userData = { screenGroup: screenGroup, screenDisplay: display };
+
+    } else if (deviceId === 'pc') {
+        var caseMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.6, roughness: 0.4 });
+        var glassMat = new THREE.MeshStandardMaterial({ color: 0x87ceeb, transparent: true, opacity: 0.3, metalness: 0.9, roughness: 0.1 });
+        var boardMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.8 });
+        var fanMat = new THREE.MeshStandardMaterial({ color: 0x111827 });
+        var gpuColor = repairColor;
+
+        var pcCase = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.5), caseMat);
+        pcCase.position.y = 0.35;
+        pcCase.castShadow = true;
+        g.add(pcCase);
+
+        var pcInternals = new THREE.Group();
+        var mobo = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.4), boardMat);
+        mobo.position.set(-0.2, 0.35, 0);
+        pcInternals.add(mobo);
+
+        var cooler = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16), fanMat);
+        cooler.rotation.z = Math.PI / 2;
+        cooler.position.set(-0.15, 0.4, 0);
+        pcInternals.add(cooler);
+        for (var i = 0; i < 4; i++) {
+            var blade = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.18, 0.03), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+            blade.position.set(-0.11, 0.4, 0);
+            blade.rotation.x = i * Math.PI / 2;
+            pcInternals.add(blade);
+        }
+
+        var gpu = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 0.15), new THREE.MeshStandardMaterial({ color: gpuColor }));
+        gpu.position.set(0.05, 0.25, 0);
+        pcInternals.add(gpu);
+        for (var gpuFan = -1; gpuFan <= 1; gpuFan += 2) {
+            var fan = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 12), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+            fan.rotation.x = Math.PI / 2;
+            fan.position.set(0.05 + gpuFan * 0.1, 0.25, 0.08);
+            pcInternals.add(fan);
+        }
+        g.add(pcInternals);
+
+        var glassGroup = new THREE.Group();
+        var glass = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.6), glassMat);
+        glass.rotation.y = Math.PI / 2;
+        glass.position.set(0.251, 0.35, 0);
+        glassGroup.add(glass);
+        
+        var glassScrews = [];
+        for (var gs = 0; gs < 4; gs++) {
+            var gScrew = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.005, 8), new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 1 }));
+            gScrew.rotation.z = Math.PI / 2;
+            gScrew.position.set(0.251, 0.35 + (gs % 2 === 0 ? 0.25 : -0.25), (gs < 2 ? 0.2 : -0.2));
+            glassGroup.add(gScrew);
+            glassScrews.push(gScrew);
+        }
+        g.add(glassGroup);
+
+        g.userData = { screenGroup: glassGroup, screenDisplay: null, gpu: gpu, cooler: cooler, mobo: mobo };
+    }
+
+    g.rotation.x = 0;
+    g.rotation.z = 0;
+    return g;
+}
+
+function buildHandAndTools() {
+    handGroup = new THREE.Group();
+    var skinMat = new THREE.MeshStandardMaterial({ color: 0xfcd5b8, roughness: 0.6 });
+    var sleeveMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.8 });
+
+    var sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.4, 12), sleeveMat);
+    sleeve.rotation.x = Math.PI / 4;
+    sleeve.rotation.z = Math.PI / 6;
+    sleeve.position.set(0.35, -0.35, -0.5);
+    handGroup.add(sleeve);
+
+    var palm = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), skinMat);
+    palm.scale.set(1.2, 1, 1.4);
+    palm.position.set(0.28, -0.22, -0.32);
+    handGroup.add(palm);
+
+    for (var i = 0; i < 4; i++) {
+        var finger = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.08, 6), skinMat);
+        finger.position.set(0.23 + i * 0.03, -0.2, -0.26);
+        finger.rotation.x = -0.5;
+        handGroup.add(finger);
+    }
+
+    var thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.018, 0.07, 6), skinMat);
+    thumb.position.set(0.35, -0.25, -0.32);
+    thumb.rotation.z = -0.5;
+    thumb.rotation.x = -0.3;
+    handGroup.add(thumb);
+
+    toolMesh = new THREE.Group();
+    toolMesh.position.set(0.28, -0.22, -0.32);
+    handGroup.add(toolMesh);
+
+    handGroup.visible = false;
+    scene.add(handGroup);
+}
+
+function setToolInHand(toolId) {
+    while (toolMesh.children.length > 0) toolMesh.remove(toolMesh.children[0]);
+    currentTool = toolId;
+    if (!toolId) return;
+
+    var matMetal = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.95, roughness: 0.1 });
+    var matYellow = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.4, roughness: 0.4 });
+    var matBlack = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.7 });
+    var matBlue = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.5 });
+    var matRubber = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+
+    if (toolId === 'screwdriver') {
+        var handle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.15, 12), matYellow);
+        handle.rotation.z = Math.PI / 2;
+        handle.position.set(0.06, 0, 0);
+        toolMesh.add(handle);
+        var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.18, 8), matMetal);
+        shaft.rotation.z = Math.PI / 2;
+        shaft.position.set(-0.08, 0, 0);
+        toolMesh.add(shaft);
+        var tip = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.012, 0.02, 5), matMetal);
+        tip.rotation.z = Math.PI / 2;
+        tip.position.set(-0.18, 0, 0);
+        toolMesh.add(tip);
+    } else if (toolId === 'suction') {
+        var handle2 = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.12, 12), matBlue);
+        handle2.rotation.z = Math.PI / 2;
+        handle2.position.set(0.06, 0, 0);
+        toolMesh.add(handle2);
+        var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 8), matMetal);
+        neck.rotation.z = Math.PI / 2;
+        neck.position.set(-0.04, 0, 0);
+        toolMesh.add(neck);
+        var suction = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), matRubber);
+        suction.rotation.z = -Math.PI / 2;
+        suction.scale.set(1, 1, 0.4);
+        suction.position.set(-0.09, 0, 0);
+        toolMesh.add(suction);
+    } else if (toolId === 'spudger') {
+        var spudger = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.015, 0.025), matBlue);
+        spudger.position.set(-0.05, 0, 0);
+        toolMesh.add(spudger);
+        var spudgerTip = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.04, 4), matBlue);
+        spudgerTip.rotation.z = -Math.PI / 2;
+        spudgerTip.position.set(-0.15, 0, 0);
+        toolMesh.add(spudgerTip);
+    } else if (toolId === 'air') {
+        var can = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 12), matBlue);
+        can.rotation.z = Math.PI / 2;
+        can.position.set(0.05, 0, 0);
+        toolMesh.add(can);
+        var nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.012, 0.06, 8), matBlack);
+        nozzle.rotation.z = Math.PI / 2;
+        nozzle.position.set(-0.1, 0, 0);
+        toolMesh.add(nozzle);
+    } else if (toolId === 'cloth') {
+        var cloth = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.08), new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 1 }));
+        cloth.position.set(-0.05, 0, 0);
+        cloth.rotation.z = 0.2;
+        toolMesh.add(cloth);
+    }
+}
+
+function createCustomer3D(repair, device, isBuyer, gender) {
+    var g = new THREE.Group();
+    var skinColors = [0xfcd5b8, 0xe8b48a, 0xd4a373, 0xb07d4f, 0x8d5524];
+    var hairColors = [0x3f2d1e, 0x1f1f1f, 0xd4a373, 0x8b4513, 0x78716c, 0xa16207, 0x7c2d12];
+    var skin = skinColors[Math.floor(Math.random() * skinColors.length)];
+    var hair = hairColors[Math.floor(Math.random() * hairColors.length)];
+    
+    var shirtColorsMale = [0xef4444, 0x22c55e, 0x3b82f6, 0xa78bfa, 0xfbbf24, 0x64748b];
+    var shirtColorsFemale = [0xec4899, 0xf472b6, 0xa78bfa, 0x14b8a6, 0xfbbf24, 0xef4444, 0x60a5fa];
+
+    var body, shirtColor;
+    if (gender === 'female') {
+        shirtColor = shirtColorsFemale[Math.floor(Math.random() * shirtColorsFemale.length)];
+        body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.55, 8), new THREE.MeshStandardMaterial({ color: shirtColor }));
+    } else {
+        shirtColor = shirtColorsMale[Math.floor(Math.random() * shirtColorsMale.length)];
+        body = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.22, 0.55, 8), new THREE.MeshStandardMaterial({ color: shirtColor }));
+    }
+    body.position.y = 0.95;
+    body.castShadow = true;
+    g.add(body);
+
+    if (gender === 'female' && !isBuyer) {
+        var skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.25, 0.35, 8), new THREE.MeshStandardMaterial({ color: shirtColor }));
+        skirt.position.y = 0.5;
+        skirt.castShadow = true;
+        g.add(skirt);
+    }
+
+    for (var ix = -1; ix <= 1; ix += 2) {
+        var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x1e3a8a }));
+        leg.position.set(ix * 0.12, 0.35, 0);
+        leg.castShadow = true;
+        g.add(leg);
+        
+        var shoeMesh = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.24), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+        shoeMesh.position.set(ix * 0.12, 0.04, 0.04);
+        shoeMesh.castShadow = true;
+        g.add(shoeMesh);
+    }
+
+    for (var ix2 = -1; ix2 <= 1; ix2 += 2) {
+        var arm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.55, 8), new THREE.MeshStandardMaterial({ color: shirtColor }));
+        arm.position.set(ix2 * (gender === 'female' ? 0.18 : 0.24), 0.95, 0);
+        arm.rotation.z = ix2 * 0.15;
+        arm.castShadow = true;
+        g.add(arm);
+        
+        var hand = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshStandardMaterial({ color: skin }));
+        hand.position.set(ix2 * (gender === 'female' ? 0.22 : 0.28), 0.65, 0);
+        g.add(hand);
+    }
+
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshStandardMaterial({ color: skin }));
+    head.position.y = 1.4;
+    head.castShadow = true;
+    g.add(head);
+
+    if (gender === 'female') {
+        var hairBase = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: hair }));
+        hairBase.position.y = 1.43;
+        hairBase.castShadow = true;
+        g.add(hairBase);
+        
+        var hairLong = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.1), new THREE.MeshStandardMaterial({ color: hair }));
+        hairLong.position.set(0, 1.2, -0.15);
+        hairLong.rotation.x = 0.2;
+        g.add(hairLong);
+    } else {
+        var hairMesh = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: hair }));
+        hairMesh.position.y = 1.43;
+        hairMesh.castShadow = true;
+        g.add(hairMesh);
+    }
+
+    for (var ex = -1; ex <= 1; ex += 2) {
+        var eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+        eyeWhite.position.set(ex * 0.07, 1.42, 0.16);
+        g.add(eyeWhite);
+        var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), new THREE.MeshBasicMaterial({ color: 0x111827 }));
+        pupil.position.set(ex * 0.07, 1.42, 0.19);
+        g.add(pupil);
+    }
+
+    var nose = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 6), new THREE.MeshStandardMaterial({ color: skin }));
+    nose.position.set(0, 1.36, 0.19);
+    nose.rotation.x = Math.PI / 2;
+    g.add(nose);
+
+    var mouth = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.015, 0.01), new THREE.MeshBasicMaterial({ color: 0x7f1d1d }));
+    mouth.position.set(0, 1.3, 0.19);
+    g.add(mouth);
+
+    if (!isBuyer) {
+        var brokenDevice = new THREE.Group();
+        if (repair.deviceType === 'pc') {
+            var pcDev = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 0.3), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+            brokenDevice.add(pcDev);
+        } else if (repair.deviceType === 'laptop') {
+            var lpBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.2), new THREE.MeshStandardMaterial({ color: 0x374151 }));
+            brokenDevice.add(lpBase);
+            var lpLid = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.02), new THREE.MeshStandardMaterial({ color: 0x374151 }));
+            lpLid.position.set(0, 0.1, -0.09);
+            lpLid.rotation.x = -1.2;
+            brokenDevice.add(lpLid);
+        } else if (repair.deviceType === 'tablet') {
+            var tbDev = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.3), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+            brokenDevice.add(tbDev);
+            var tbScr = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.26), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.6 }));
+            tbScr.rotation.x = -Math.PI / 2;
+            tbScr.position.y = 0.015;
+            brokenDevice.add(tbScr);
+        } else {
+            var phDev = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.22), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+            brokenDevice.add(phDev);
+            var phScr = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.18), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.6 }));
+            phScr.rotation.x = -Math.PI / 2;
+            phScr.position.y = 0.015;
+            brokenDevice.add(phScr);
+        }
+
+        brokenDevice.position.set(0.25, 0.85, 0.15);
+        brokenDevice.rotation.x = 0.4;
+        g.add(brokenDevice);
+        g.userData.brokenPhone = brokenDevice;
+    } else {
+        var bubble = new THREE.Group();
+        var bubbleBase = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+        bubble.add(bubbleBase);
+        
+        var bubbleTail = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 4), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+        bubbleTail.position.set(0, -0.15, 0);
+        bubbleTail.rotation.x = Math.PI;
+        bubble.add(bubbleTail);
+        
+        var bubbleDot1 = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), new THREE.MeshBasicMaterial({ color: 0x111827 }));
+        bubbleDot1.position.set(-0.05, 0, 0.13);
+        bubble.add(bubbleDot1);
+        var bubbleDot2 = bubbleDot1.clone();
+        bubbleDot2.position.x = 0;
+        bubble.add(bubbleDot2);
+        var bubbleDot3 = bubbleDot1.clone();
+        bubbleDot3.position.x = 0.05;
+        bubble.add(bubbleDot3);
+        
+        bubble.position.set(0, 2.1, 0);
+        g.add(bubble);
+        g.userData.bubble = bubble;
+    }
+
+    g.userData.mouth = mouth;
+    g.userData.leftLeg = g.children[0];
+    g.userData.rightLeg = g.children[2];
+
+    return g;
+}
+
+function spawnCustomer() {
+    var remaining = TARGET_CLIENTS - progress;
+    var waitingCount = customers.filter(function(c) { return c.state === 'waiting' || c.state === 'walking'; }).length;
+    
+    if (remaining <= 0) return;
+    if (remaining <= 2 && waitingCount >= 1) return;
+    if (waitingCount >= 5) return;
+
+    var occupiedRepair = customers.filter(function(c) { return !c.isBuyer; }).map(function(c) { return c.slot; });
+    var freeRepair = [0, 1, 2, 3].filter(function(i) { return occupiedRepair.indexOf(i) === -1; });
+    
+    var occupiedBuyer = customers.filter(function(c) { return c.isBuyer; }).map(function(c) { return c.slot; });
+    var freeBuyer = [0, 1, 2].filter(function(i) { return occupiedBuyer.indexOf(i) === -1; });
+
+    var isBuyer = Math.random() < 0.4;
+    var slot, targetX, targetZ, repair, device;
+    
+    var nameData = NAMES_DATA[Math.floor(Math.random() * NAMES_DATA.length)];
+    var name = nameData.name;
+    var gender = nameData.gender;
+
+    if (isBuyer && freeBuyer.length > 0) {
+        slot = freeBuyer[freeBuyer.length - 1];
+        targetX = BUYER_SLOTS[slot].x;
+        targetZ = BUYER_SLOTS[slot].z;
+        repair = null;
+        device = null;
+    } else if (freeRepair.length > 0) {
+        isBuyer = false;
+        slot = freeRepair[freeRepair.length - 1];
+        targetX = QUEUE_SLOTS[slot].x;
+        targetZ = QUEUE_SLOTS[slot].z;
+        repair = REPAIRS[Math.floor(Math.random() * REPAIRS.length)];
+        device = DEVICES.find(function(d) { return d.id === repair.deviceType; });
+    } else {
+        return;
+    }
+    
+    var model = createCustomer3D(repair, device, isBuyer, gender);
+    
+    model.position.set(-5, 0, 6);
+    model.userData.targetX = targetX;
+    model.userData.targetZ = targetZ;
+    model.rotation.y = Math.PI;
+    model.userData.isCustomer = true;
+    lobbyGroup.add(model);
+
+    customers.push({
+        id: ++customerId, name: name, gender: gender, repair: repair, device: device,
+        isBuyer: isBuyer, slot: slot, model: model,
+        state: 'walking',
+        walkPhase: Math.random() * Math.PI * 2
+    });
+}
+
+function updateCustomers(dt) {
+    for (var i = customers.length - 1; i >= 0; i--) {
+        var c = customers[i];
+        var dx = c.model.userData.targetX - c.model.position.x;
+        var dz = c.model.userData.targetZ - c.model.position.z;
+        var dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist > 0.05) {
+            var spd = 2 * dt;
+            c.model.position.x += (dx / dist) * Math.min(spd, dist);
+            c.model.position.z += (dz / dist) * Math.min(spd, dist);
+            c.walkPhase += dt * 8;
+            if (c.model.userData.leftLeg) {
+                c.model.userData.leftLeg.position.z = Math.sin(c.walkPhase) * 0.08;
+                c.model.userData.rightLeg.position.z = -Math.sin(c.walkPhase) * 0.08;
+            }
+        } else {
+            c.model.position.x = c.model.userData.targetX;
+            c.model.position.z = c.model.userData.targetZ;
+            if (c.state === 'walking') c.state = 'waiting';
+        }
+
+        if (c.isBuyer && c.state === 'waiting') {
+            c.model.lookAt(-7.5, 1.4, c.model.position.z);
+        } else {
+            var targetRot = Math.PI;
+            var diff = targetRot - c.model.rotation.y;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            c.model.rotation.y += diff * Math.min(1, dt * 3);
+        }
+
+        if (c.model.userData.brokenPhone) {
+            c.model.userData.brokenPhone.rotation.y = Math.sin(gameTime * 0.002 + c.id) * 0.3 + 0.3;
+        }
+        if (c.model.userData.bubble) {
+            c.model.userData.bubble.position.y = 2.1 + Math.sin(gameTime * 0.004 + c.id) * 0.1;
+            c.model.userData.bubble.rotation.y = Math.sin(gameTime * 0.002 + c.id) * 0.3;
+        }
+    }
+}
+
+function removeCustomer(c) {
+    lobbyGroup.remove(c.model);
+    customers = customers.filter(function(x) { return x !== c; });
+    
+    var waitingRepair = customers.filter(function(x) { return !x.isBuyer; }).sort(function(a, b) { return a.slot - b.slot; });
+    waitingRepair.forEach(function(x, idx) {
+        if (idx < 4) {
+            x.slot = idx;
+            x.model.userData.targetX = QUEUE_SLOTS[idx].x;
+            x.model.userData.targetZ = QUEUE_SLOTS[idx].z;
+        }
+    });
+    var waitingBuyer = customers.filter(function(x) { return x.isBuyer; }).sort(function(a, b) { return a.slot - b.slot; });
+    waitingBuyer.forEach(function(x, idx) {
+        if (idx < 3) {
+            x.slot = idx;
+            x.model.userData.targetX = BUYER_SLOTS[idx].x;
+            x.model.userData.targetZ = BUYER_SLOTS[idx].z;
+        }
+    });
+}
+
+function startDelivery() {
+    if (deliveryState !== 'idle' || mode !== 'lobby') return;
+    deliveryState = 'driving_in';
+    var notif = document.getElementById('deliveryNotif');
+    notif.style.display = 'block';
+    setTimeout(function() { notif.style.display = 'none'; }, 5000);
+
+    deliveryTruck = new THREE.Group();
+    var cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 2), new THREE.MeshStandardMaterial({ color: 0xfbbf24 }));
+    cabin.position.set(0, 0.8, 1.2);
+    deliveryTruck.add(cabin);
+    var cargo = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 3), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+    cargo.position.set(0, 1.1, -1);
+    deliveryTruck.add(cargo);
+
+    for (var wx = -1; wx <= 1; wx += 2) {
+        for (var wz = -1; wz <= 1; wz += 2) {
+            var wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(wx * 0.9, 0.4, wz * 1.2);
+            deliveryTruck.add(wheel);
+        }
+    }
+
+    deliveryTruck.position.set(-25, 0, 9);
+    deliveryTruck.rotation.y = -Math.PI / 2;
+    lobbyGroup.add(deliveryTruck);
+
+    deliveryBoxes = [];
+    deliveryPeople = [];
+}
+
+function updateDelivery(dt) {
+    if (deliveryState === 'idle') return;
+
+    if (deliveryState === 'driving_in') {
+        deliveryTruck.position.x += 5 * dt;
+        if (deliveryTruck.position.x >= -3) {
+            deliveryTruck.position.x = -3;
+            deliveryState = 'unloading';
+            
+            setTimeout(function() {
+                for (var p = 0; p < 2; p++) {
+                    var worker = new THREE.Group();
+                    var body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0xf59e0b }));
+                    body.position.y = 0.6;
+                    worker.add(body);
+                    var head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfcd5b8 }));
+                    head.position.y = 0.95;
+                    worker.add(head);
+                    
+                    worker.position.set(-3, 0, 9);
+                    worker.userData.targetZ = 6;
+                    lobbyGroup.add(worker);
+                    deliveryPeople.push(worker);
+                }
+                
+                var phase = 'going';
+                var boxesDropped = 0;
+                
+                var unloadInterval = setInterval(function() {
+                    if (phase === 'going') {
+                        var allArrived = true;
+                        deliveryPeople.forEach(function(w) {
+                            if (w.position.z > 6.5) {
+                                w.position.z -= 0.1;
+                                allArrived = false;
+                            }
+                        });
+                        if (allArrived) phase = 'unloading';
+                    } else if (phase === 'unloading') {
+                        if (boxesDropped < 5) {
+                            var box = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0xd97706 }));
+                            box.position.set(-3 + (boxesDropped % 2) * 0.6, 0.2, 6.5 + Math.floor(boxesDropped / 2) * 0.6);
+                            lobbyGroup.add(box);
+                            deliveryBoxes.push(box);
+                            
+                            var partKeys = Object.keys(INVENTORY);
+                            var randomPart = partKeys[Math.floor(Math.random() * partKeys.length)];
+                            INVENTORY[randomPart]++;
+                            var partItem = SHOP_ITEMS.find(function(i) { return i.id === randomPart; });
+                            showPartNotif('+' + partItem.name);
+                            boxesDropped++;
+                        } else {
+                            phase = 'returning';
+                        }
+                    } else if (phase === 'returning') {
+                        var allLeft = true;
+                        deliveryPeople.forEach(function(w) {
+                            w.position.z += 0.1;
+                            if (w.position.z < 9) allLeft = false;
+                        });
+                        if (allLeft) {
+                            clearInterval(unloadInterval);
+                            deliveryPeople.forEach(function(w) { lobbyGroup.remove(w); });
+                            deliveryPeople = [];
+                            setTimeout(function() {
+                                deliveryState = 'driving_out';
+                                setTimeout(function() {
+                                    deliveryBoxes.forEach(function(b) { lobbyGroup.remove(b); });
+                                    deliveryBoxes = [];
+                                }, 1000);
+                            }, 1000);
+                        }
+                    }
+                }, 50);
+            }, 1000);
+        }
+    } else if (deliveryState === 'driving_out') {
+        deliveryTruck.position.x += 5 * dt;
+        if (deliveryTruck.position.x >= 25) {
+            lobbyGroup.remove(deliveryTruck);
+            deliveryTruck = null;
+            deliveryState = 'idle';
+        }
+    }
+}
+
+function showPartNotif(text) {
+    var container = document.getElementById('partNotifs');
+    var div = document.createElement('div');
+    div.className = 'part-notif';
+    div.textContent = text;
+    container.appendChild(div);
+    setTimeout(function() {
+        div.style.opacity = '0';
+        setTimeout(function() { div.remove(); }, 300);
+    }, 3000);
+}
+
+function startBuyerDialog(customer) {
+    gamePaused = true;
+    currentBuyer = customer;
+
+    cameraState.targetX = customer.model.position.x + 1.5;
+    cameraState.targetY = 1.6;
+    cameraState.targetZ = customer.model.position.z;
+    cameraState.targetYaw = Math.atan2(customer.model.position.x - cameraState.targetX, customer.model.position.z - cameraState.targetZ);
+
+    currentWish = WISHES[Math.floor(Math.random() * WISHES.length)];
+    
+    var matchItem = SHOP_STOCK.find(function(i) { return currentWish.match.includes(i.id); });
+    var otherItems = SHOP_STOCK.filter(function(i) { return !currentWish.match.includes(i.id); });
+    otherItems = otherItems.sort(function() { return 0.5 - Math.random(); });
+    
+    currentBuyerChoices = [matchItem, otherItems[0], otherItems[1]].sort(function() { return 0.5 - Math.random(); });
+    
+    chosenItem = null;
+    refusedCount = 0;
+
+    document.getElementById('buyerText').textContent = '«' + customer.name + ': ' + currentWish.text + '»';
+    document.getElementById('specsArea').classList.remove('show');
+    document.getElementById('btnAccept').style.display = 'none';
+    document.getElementById('btnRefuse').style.display = 'none';
+
+    var choiceRow = document.getElementById('choiceRow');
+    choiceRow.innerHTML = '';
+
+    currentBuyerChoices.forEach(function(item) {
+        var card = document.createElement('div');
+        card.className = 'choice-card';
+        card.innerHTML = 
+            '<div class="icon">' + item.icon + '</div>' +
+            '<div class="name">' + item.name + '</div>';
+        
+        if (currentWish.match.includes(item.id)) {
+            var badge = document.createElement('div');
+            badge.className = 'match-badge';
+            badge.textContent = '✓ Подходит';
+            card.appendChild(badge);
+        }
+        
+        card.onclick = function() { showBuyerSpecs(item, card); };
+        choiceRow.appendChild(card);
+    });
+
+    document.getElementById('buyerPanel').classList.add('show');
+}
+
+function showBuyerSpecs(item, cardElement) {
+    chosenItem = item;
+    
+    var cards = document.querySelectorAll('.choice-card');
+    cards.forEach(function(c) { c.style.borderColor = 'rgba(255,255,255,0.1)'; });
+    if (cardElement) cardElement.style.borderColor = '#fbbf24';
+
+    document.getElementById('specsTitle').textContent = item.name;
+    var specsList = document.getElementById('specsList');
+    specsList.innerHTML = '';
+    
+    for (var key in item.specs) {
+        var row = document.createElement('div');
+        row.className = 'spec-row';
+        row.innerHTML = '<span>' + key + ':</span><span>' + item.specs[key] + '</span>';
+        specsList.appendChild(row);
+    }
+    
+    document.getElementById('specsPrice').textContent = 'Цена: ' + item.basePrice + '₽';
+    document.getElementById('specsArea').classList.add('show');
+    document.getElementById('btnAccept').style.display = 'inline-block';
+    document.getElementById('btnRefuse').style.display = 'inline-block';
+}
+
+function acceptSale() {
+    if (!chosenItem || !currentBuyer) return;
+    var isMatch = currentWish.match.includes(chosenItem.id);
+    var itemRef = chosenItem;
+    var buyerRef = currentBuyer;
+    
+    closeBuyerDialog();
+    removeCustomer(buyerRef);
+    currentBuyer = null;
+    
+    if (isMatch) {
+        if (itemRef.model) {
+            lobbyGroup.remove(itemRef.model);
+            itemRef.model = null;
+            setTimeout(function() {
+                var newModel = createShopItemModel(itemRef.id);
+                newModel.position.set(itemRef.shelfPos.x, itemRef.shelfPos.y, itemRef.shelfPos.z);
+                if (itemRef.shelfPos.x < 0) newModel.rotation.y = Math.PI / 2;
+                else newModel.rotation.y = -Math.PI / 2;
+                newModel.userData.isShopItem = true;
+                newModel.userData.itemRef = itemRef;
+                lobbyGroup.add(newModel);
+                itemRef.model = newModel;
+            }, 5000);
+        }
+
+        shiftEarnings += itemRef.basePrice;
+        progress++;
+        updateHUD();
+        saveGame();
+        addReview(true, 'Спасибо, это именно то, что я искал!', buyerRef.name);
+        
+        showModal('ok', '💰 Продажа!', 'Вы продали ' + itemRef.name, '+' + itemRef.basePrice + '₽', function() {
+            checkWinCondition();
+        });
+    } else {
+        addReview(false, 'Это совсем не то, что я просил.', buyerRef.name);
+        showModal('err', '❌ Отказ', 'Клиент сказал: "Мне нужно не это, а ' + currentWish.text.toLowerCase() + '"', '', function() {
+            checkWinCondition();
+        });
+    }
+}
+
+function refuseSale() {
+    if (!currentBuyer) return;
+    refusedCount++;
+    document.getElementById('specsArea').classList.remove('show');
+    document.getElementById('btnAccept').style.display = 'none';
+    document.getElementById('btnRefuse').style.display = 'none';
+
+    var cards = document.querySelectorAll('.choice-card');
+    if (chosenItem) {
+        currentBuyerChoices.forEach(function(item, idx) {
+            if (item === chosenItem) cards[idx].classList.add('disabled');
+        });
+    }
+
+    if (refusedCount >= 3) {
+        document.getElementById('buyerText').textContent = '«Ладно, тогда я возьму вот это...»';
+        var buyerRef = currentBuyer;
+        setTimeout(function() {
+            var randomItem = SHOP_STOCK[Math.floor(Math.random() * SHOP_STOCK.length)];
+            closeBuyerDialog();
+            removeCustomer(buyerRef);
+            currentBuyer = null;
+            
+            shiftEarnings += Math.floor(randomItem.basePrice * 0.8);
+            progress++;
+            updateHUD();
+            saveGame();
+            addReview(false, 'Пришлось выбрать самому, вы мне не помогли.', buyerRef.name);
+            
+            showModal('ok', '💰 Продажа!', 'Клиент взял ' + randomItem.name + ' сам', '+' + Math.floor(randomItem.basePrice * 0.8) + '₽', function() {
+                checkWinCondition();
+            });
+        }, 1500);
+    }
+}
+
+function closeBuyerDialog() {
+    document.getElementById('buyerPanel').classList.remove('show');
+    gamePaused = false;
+    cameraState.targetX = 0;
+    cameraState.targetY = 1.6;
+    cameraState.targetZ = -1.5;
+    cameraState.targetYaw = 0;
+    cameraState.targetPitch = 0;
+}
+
+document.getElementById('btnAccept').onclick = acceptSale;
+document.getElementById('btnRefuse').onclick = refuseSale;
+document.getElementById('btnCancel').onclick = function() {
+    if (currentBuyer) {
+        addReview(false, 'Клиент ушёл ни с чем.', currentBuyer.name);
+    }
+    closeBuyerDialog();
+    if (currentBuyer) {
+        removeCustomer(currentBuyer);
+        currentBuyer = null;
+    }
+};
+
+function addReview(isGood, text, customerName) {
+    var reviewsContainer = document.getElementById('reviews');
+    var review = document.createElement('div');
+    review.className = 'review' + (isGood ? '' : ' bad');
+    var stars = isGood ? '★★★★★' : '★☆☆☆☆';
+    var name = customerName || 'Клиент';
+    
+    review.innerHTML = 
+        '<div class="stars">' + stars + '</div>' +
+        '<div class="name">' + name + '</div>' +
+        '<div class="text">' + text + '</div>';
+    
+    reviewsContainer.appendChild(review);
+    setTimeout(function() {
+        review.style.transition = 'opacity 0.5s';
+        review.style.opacity = '0';
+        setTimeout(function() { review.remove(); }, 500);
+    }, 5000);
+}
+
+function updateHUD() {
+    document.getElementById('money').textContent = money;
+    document.getElementById('progress').textContent = progress;
+    document.getElementById('shiftEarnings').textContent = shiftEarnings;
+}
+
+function checkWinCondition() {
+    if (progress >= TARGET_CLIENTS && !gameOver) {
+        gameOver = true;
+        if (window.bossModel) window.bossModel.visible = true;
+        
+        var salary = Math.floor(Math.random() * 10000) + 5000;
+        money += salary;
+        updateHUD();
+        saveGame();
+        
+        setTimeout(function() {
+            showModal('ok', '👨‍💼 Шеф с проверкой', 
+                '«Отличная работа! Вы обслужили ' + progress + ' клиентов. Выручка за смену: ' + shiftEarnings + '₽. Вот ваша зарплата:»', 
+                '+' + salary + '₽', 
+                function() {
+                    if (window.bossModel) window.bossModel.visible = false;
+                    document.getElementById('endText').innerHTML = 
+                        'Шеф выдал вам зарплату <b>' + salary + '₽</b> и ушёл.<br>' +
+                        'Ваша выручка за смену: <b>' + shiftEarnings + '₽</b>.<br>' +
+                        'Вы отлично поработали!';
+                    document.getElementById('endScreen').classList.add('show');
+                });
+        }, 1000);
+    }
+}
+
+function buildShopList() {
+    var list = document.getElementById('upgradeList');
+    list.innerHTML = '';
+    SHOP_ITEMS.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML =
+            '<div class="icon">' + item.icon + '</div>' +
+            '<div class="info">' +
+                '<h3>' + item.name + '</h3>' +
+                '<div class="level">На складе: ' + INVENTORY[item.id] + ' шт.</div>' +
+            '</div>' +
+            '<div class="count">' + item.price + '₽</div>' +
+            '<button ' + (money < item.price ? 'disabled' : '') + '>Купить</button>';
+
+        var btn = div.querySelector('button');
+        btn.onclick = function() { buyItem(item.id); };
+        btn.disabled = money < item.price;
+        list.appendChild(div);
+    });
+    document.getElementById('shopMoney').textContent = money;
+}
+
+function buyItem(id) {
+    var item = SHOP_ITEMS.find(function(i) { return i.id === id; });
+    if (money < item.price) return;
+    money -= item.price;
+    INVENTORY[id]++;
+    updateHUD();
+    saveGame();
+    buildShopList();
+}
+
+function buildInventoryList() {
+    var list = document.getElementById('inventoryList');
+    list.innerHTML = '';
+    SHOP_STOCK.forEach(function(item) {
+        var specsHtml = '';
+        for (var key in item.specs) {
+            specsHtml += '<div>' + key + ': ' + item.specs[key] + '</div>';
+        }
+        
+        var div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML =
+            '<div class="icon">' + item.icon + '</div>' +
+            '<div class="info">' +
+                '<h3>' + item.name + '</h3>' +
+                '<p>' + specsHtml + '</p>' +
+            '</div>' +
+            '<div class="count" style="color:#fbbf24;">' + item.basePrice + '₽</div>';
+
+        list.appendChild(div);
+    });
+}
+
+document.getElementById('shopBtn').onclick = function() {
+    document.getElementById('shop').classList.add('show');
+    buildShopList();
+    gamePaused = true;
+};
+document.getElementById('closeShop').onclick = function() {
+    document.getElementById('shop').classList.remove('show');
+    gamePaused = false;
+};
+
+document.getElementById('inventoryBtn').onclick = function() {
+    document.getElementById('inventoryPanel').classList.add('show');
+    buildInventoryList();
+    gamePaused = true;
+};
+document.getElementById('closeInventory').onclick = function() {
+    document.getElementById('inventoryPanel').classList.remove('show');
+    gamePaused = false;
+};
+
+function buildToolbar() {
+    var tb = document.getElementById('toolbar');
+    tb.innerHTML = '';
+    tb.style.display = 'flex';
+    TOOLS.forEach(function(t) {
+        var d = document.createElement('div');
+        d.className = 'tool';
+        d.dataset.id = t.id;
+        d.innerHTML = '<div>' + t.icon + '</div><div class="lbl">' + t.label + '</div>';
+        d.onclick = function() { selectTool(t.id); };
+        tb.appendChild(d);
+    });
+}
+
+function selectTool(id) {
+    if (!currentRepair) return;
+    currentRepair.selected = id;
+    var tools = document.querySelectorAll('.tool');
+    for (var i = 0; i < tools.length; i++) {
+        tools[i].classList.toggle('sel', tools[i].dataset.id === id);
+    }
+    setToolInHand(id);
+    
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
+}
+
+function updateRepairUI() {
+    if (!currentRepair) return;
+    var box = document.getElementById('repSteps');
+    box.innerHTML = '';
+    currentRepair.repair.steps.forEach(function(step, i) {
+        var d = document.createElement('div');
+        d.className = 'step';
+        if (i < currentRepair.stepIndex) d.classList.add('done');
+        else if (i === currentRepair.stepIndex) d.classList.add('current');
+
+        var cnt = '';
+        if (i === currentRepair.stepIndex) cnt = currentRepair.stepCurrent + '/' + currentRepair.stepGoal;
+        else if (i > currentRepair.stepIndex) cnt = '0/' + step.count;
+        else cnt = '✓';
+
+        d.innerHTML = '<span>' + step.icon + '</span><span>' + step.text + '</span><span class="cnt">' + cnt + '</span>';
+        box.appendChild(d);
+    });
+}
+
+function startRepair(c) {
+    var requiredPart = c.repair.requiredPart;
+    if (INVENTORY[requiredPart] <= 0) {
+        var partName = SHOP_ITEMS.find(function(i) { return i.id === requiredPart; }).name;
+        showModal('err', '❌ Нет на складе!', 'Для ремонта нужна запчасть: ' + partName + '. Подождите доставку или купите в магазине (Склад).');
+        return;
+    }
+
+    INVENTORY[requiredPart]--;
+    buildShopList();
+    saveGame();
+
+    mode = 'workshop';
+    lobbyGroup.visible = false;
+    workshopGroup.visible = true;
+    handGroup.visible = true;
+    gamePaused = true;
+
+    camera.position.set(0, 2.2, 1.2);
+    camera.lookAt(0, 0.8, -0.7);
+
+    document.getElementById('title').textContent = '🔧 Мастерская';
+    document.getElementById('title').classList.add('w');
+    document.getElementById('hint').style.display = 'none';
+    document.getElementById('cameraHint').style.display = 'none';
+
+    currentRepair = {
+        customer: c,
+        repair: c.repair, stepIndex: 0, stepCurrent: 0,
+        stepGoal: c.repair.steps[0].count, selected: null
+    };
+
+    if (deviceGroup) {
+        workshopGroup.remove(deviceGroup);
+        deviceGroup.traverse(function(obj) {
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (Array.isArray(obj.material)) obj.material.forEach(function(m) { m.dispose(); });
+                else obj.material.dispose();
+            }
+        });
+    }
+    
+    var color = c.repair.name.indexOf('экрана') !== -1 ? 0x7f1d1d : (c.repair.name.indexOf('батареи') !== -1 ? 0x166534 : 0x78350f);
+    deviceGroup = createDeviceModel(c.device.modelType, color);
+    deviceGroup.position.set(0, 0.96, -0.7);
+    
+    if (c.device.modelType === 'pc') {
+        deviceGroup.rotation.y = -Math.PI / 2;
+    }
+    
+    workshopGroup.add(deviceGroup);
+
+    document.getElementById('repTitle').textContent = '🔧 ' + c.repair.name;
+    document.getElementById('repClient').textContent = c.name + ' · ' + c.device.name + ' · ' + c.repair.price + '₽';
+    
+    var partNeeded = document.getElementById('partsNeeded');
+    var partItem = SHOP_ITEMS.find(function(i) { return i.id === requiredPart; });
+    partNeeded.innerHTML = '✅ Запчасть: ' + partItem.name + ' (использована)';
+    partNeeded.className = 'parts-needed ok';
+
+    document.getElementById('repairBox').style.display = 'block';
+    buildToolbar();
+    updateRepairUI();
+
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
+}
+
+function backToLobby() {
+    mode = 'lobby';
+    currentRepair = null;
+    lobbyGroup.visible = true;
+    workshopGroup.visible = false;
+    handGroup.visible = false;
+    gamePaused = false;
+
+    cameraState.yaw = 0;
+    cameraState.pitch = 0;
+    cameraState.targetYaw = 0;
+    cameraState.targetPitch = 0;
+    updateCamera();
+
+    document.getElementById('title').textContent = '🏢 Ресепшн';
+    document.getElementById('title').classList.remove('w');
+    document.getElementById('hint').style.display = 'block';
+    document.getElementById('cameraHint').style.display = 'block';
+    document.getElementById('repairBox').style.display = 'none';
+    document.getElementById('toolbar').style.display = 'none';
+}
+
+function tryStep() {
+    if (!currentRepair) return;
+    var steps = currentRepair.repair.steps;
+
+    if (currentRepair.stepIndex >= steps.length) {
+        finishRepair();
+        return;
+    }
+
+    var step = steps[currentRepair.stepIndex];
+
+    if (!currentRepair.selected) {
+        document.getElementById('toolbar').style.animation = 'shake 0.3s';
+        setTimeout(function() { document.getElementById('toolbar').style.animation = ''; }, 300);
+        return;
+    }
+
+    if (currentRepair.selected !== step.tool) {
+        showModal('err', '❌ Не тот инструмент', 'Для «' + step.text + '» нужен другой инструмент');
+        return;
+    }
+
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
+
+    var startTime = performance.now();
+    (function animTool() {
+        var t = (performance.now() - startTime) / 500;
+        if (t >= 1) {
+            toolMesh.rotation.z = 0;
+            return;
+        }
+        toolMesh.rotation.z = Math.sin(t * Math.PI * 2) * 0.5;
+        requestAnimationFrame(animTool);
+    })();
+
+    var beforeStep = currentRepair.stepIndex;
+
+    startMiniGame(step.miniGame, function(success) {
+        if (success) {
+            currentRepair.stepCurrent++;
+            if (currentRepair.stepCurrent >= currentRepair.stepGoal) {
+                currentRepair.stepIndex++;
+                currentRepair.stepCurrent = 0;
+                if (currentRepair.stepIndex < steps.length) {
+                    currentRepair.stepGoal = steps[currentRepair.stepIndex].count;
+                }
+            }
+            updateRepairUI();
+
+            if (deviceGroup && deviceGroup.userData.gpu) {
+                if (currentRepair.repair.name === 'Замена видеокарты' && currentRepair.stepIndex >= 3) {
+                    var oldGpu = deviceGroup.userData.gpu;
+                    if (oldGpu) {
+                        oldGpu.material.color.setHex(0x22c55e);
+                        oldGpu.material.emissive = new THREE.Color(0x22c55e);
+                        oldGpu.material.emissiveIntensity = 0.5;
+                    }
+                }
+                if (currentRepair.repair.name === 'Апгрейд процессора' && currentRepair.stepIndex >= 3) {
+                    var cooler = deviceGroup.userData.cooler;
+                    if (cooler) {
+                        cooler.material.color.setHex(0x22c55e);
+                    }
+                }
+            }
+
+            if (deviceGroup && deviceGroup.userData.screenGroup) {
+                if (beforeStep === 1 && currentRepair.stepIndex === 2) {
+                    animateScreenLift();
+                }
+                if (beforeStep === 3 && currentRepair.stepIndex >= 4) {
+                    animateScreenPlace();
+                }
+            }
+
+            if (currentRepair.stepIndex >= steps.length) {
+                setTimeout(finishRepair, 500);
+            }
+        } else {
+            showModal('err', '❌ Промах!', 'Попробуй ещё раз — шаг не выполнен');
+        }
+    });
+}
+
+function finishRepair() {
+    if (!currentRepair) return;
+    var r = currentRepair.repair;
+    shiftEarnings += r.price;
+    progress++;
+    updateHUD();
+    saveGame();
+    
+    if (deviceGroup && deviceGroup.userData.screenGroup) {
+        deviceGroup.userData.screenGroup.position.y = 0.022;
+        deviceGroup.userData.screenGroup.rotation.set(0, 0, 0);
+        deviceGroup.userData.screenGroup.visible = true;
+    }
+    
+    var repairedCustomer = currentRepair.customer;
+    setTimeout(function() {
+        removeCustomer(repairedCustomer);
+        gamePaused = false;
+        checkWinCondition();
+    }, 500);
+
+    showModal('ok', '✅ Ремонт завершён!', 'Клиент забрал устройство', '+' + r.price + '₽', backToLobby);
+}
+
+var miniGameState = null;
+var mgCanvas = document.getElementById('mgCanvas');
+var mgCtx = mgCanvas.getContext('2d');
+
+function startMiniGame(type, callback) {
+    var duration = 5;
+    var titles = {
+        aim: { h: '🎯 Точность', s: 'Кликай, когда указатель в зелёной зоне!' },
+        rhythm: { h: '🔌 Соединение', s: 'Кликни по левому и правому контакту одного цвета!' },
+        rotate: { h: '🔄 Скрутка', s: 'Крути мышью по кругу!' },
+        hold: { h: '💪 Усилие', s: 'Зажми и держи ЛКМ!' }
+    };
+    document.getElementById('mgHeader').textContent = titles[type].h;
+    document.getElementById('mgSub').textContent = titles[type].s;
+    document.getElementById('mgResult').textContent = '';
+    document.getElementById('mgTimer').style.width = '100%';
+    document.getElementById('miniGame').classList.add('show');
+
+    miniGameState = {
+        type: type, callback: callback,
+        startTime: performance.now(), duration: duration * 1000,
+        finished: false,
+        aimPos: 0, aimDir: 1, aimTarget: 0.5, aimTargetW: 0.15,
+        rhythmPos: 0, rhythmHits: 0, rhythmNeeded: 3, rhythmSpeed: 1.5,
+        rotateAmount: 0, rotateNeeded: 720, lastMouse: null,
+        holdAmount: 0, isHolding: false
+    };
+
+    mgCanvas.onclick = null;
+    mgCanvas.onmousedown = null;
+    mgCanvas.onmouseup = null;
+    mgCanvas.onmousemove = null;
+
+    if (type === 'aim') {
+        miniGameState.aimTarget = 0.3 + Math.random() * 0.4;
+        mgCanvas.onclick = function() {
+            if (miniGameState.finished) return;
+            var diff = Math.abs(miniGameState.aimPos - miniGameState.aimTarget);
+            if (diff < miniGameState.aimTargetW) finishMiniGame(true);
+            else miniGameState.aimTarget = 0.2 + Math.random() * 0.6;
+        };
+    } else if (type === 'rhythm') {
+        var contacts = [];
+        for (var c = 0; c < 3; c++) {
+            var color = ['#ef4444', '#3b82f6', '#22c55e'][c];
+            contacts.push({ leftColor: color, rightColor: color, connected: false });
+        }
+        var rightOrder = [0, 1, 2].sort(function() { return 0.5 - Math.random(); });
+        miniGameState.contacts = contacts;
+        miniGameState.rightOrder = rightOrder;
+        miniGameState.selectedLeft = null;
+
+        mgCanvas.onclick = function(e) {
+            if (miniGameState.finished) return;
+            var rect = mgCanvas.getBoundingClientRect();
+            var mx = e.clientX - rect.left;
+            var my = e.clientY - rect.top;
+
+            for (var i = 0; i < 3; i++) {
+                var ly = 50 + i * 100;
+                if (Math.abs(mx - 80) < 30 && Math.abs(my - ly) < 30) {
+                    miniGameState.selectedLeft = i;
+                    return;
+                }
+            }
+            for (var j = 0; j < 3; j++) {
+                var ry = 50 + miniGameState.rightOrder[j] * 100;
+                if (Math.abs(mx - 420) < 30 && Math.abs(my - ry) < 30) {
+                    if (miniGameState.selectedLeft !== null) {
+                        var leftIdx = miniGameState.selectedLeft;
+                        var rightOriginalIdx = miniGameState.rightOrder[j];
+                        if (leftIdx === rightOriginalIdx) {
+                            miniGameState.contacts[leftIdx].connected = true;
+                            miniGameState.selectedLeft = null;
+                            var allConnected = miniGameState.contacts.every(function(c) { return c.connected; });
+                            if (allConnected) finishMiniGame(true);
+                        } else {
+                            miniGameState.selectedLeft = null;
+                        }
+                    }
+                    return;
+                }
+            }
+        };
+    } else if (type === 'rotate') {
+        mgCanvas.onmousedown = function(e) { miniGameState.lastMouse = { x: e.clientX, y: e.clientY }; };
+        mgCanvas.onmousemove = function(e) {
+            if (!miniGameState.lastMouse || miniGameState.finished) return;
+            var dx = e.clientX - miniGameState.lastMouse.x;
+            var dy = e.clientY - miniGameState.lastMouse.y;
+            miniGameState.rotateAmount += Math.sqrt(dx*dx + dy*dy);
+            miniGameState.lastMouse = { x: e.clientX, y: e.clientY };
+            if (miniGameState.rotateAmount >= miniGameState.rotateNeeded) finishMiniGame(true);
+        };
+        mgCanvas.onmouseup = function() { miniGameState.lastMouse = null; };
+    } else if (type === 'hold') {
+        mgCanvas.onmousedown = function() { 
+            if (miniGameState) miniGameState.isHolding = true; 
+        };
+        mgCanvas.onmouseup = function() { 
+            if (miniGameState) miniGameState.isHolding = false; 
+        };
+        mgCanvas.onmouseleave = function() { 
+            if (miniGameState) miniGameState.isHolding = false; 
+        };
+    }
+
+    function mgLoop(t) {
+        if (miniGameState === null || miniGameState.finished) return;
+        var elapsed = t - miniGameState.startTime;
+        var remaining = Math.max(0, 1 - elapsed / miniGameState.duration);
+        document.getElementById('mgTimer').style.width = (remaining * 100) + '%';
+
+        if (elapsed >= miniGameState.duration && !miniGameState.finished) {
+            finishMiniGame(false);
+            return;
+        }
+
+        updateMiniGame(1/60);
+        drawMiniGame();
+        requestAnimationFrame(mgLoop);
+    }
+    requestAnimationFrame(mgLoop);
+}
+
+function updateMiniGame(dt) {
+    var mg = miniGameState;
+    if (!mg) return;
+    if (mg.type === 'aim') {
+        mg.aimPos += mg.aimDir * 0.015;
+        if (mg.aimPos > 1) { mg.aimPos = 1; mg.aimDir = -1; }
+        if (mg.aimPos < 0) { mg.aimPos = 0; mg.aimDir = 1; }
+    } else if (mg.type === 'rhythm') {
+        // статичная
+    } else if (mg.type === 'hold') {
+        if (mg.isHolding) {
+            mg.holdAmount += dt * 0.5;
+            if (mg.holdAmount >= 1) finishMiniGame(true);
+        } else {
+            mg.holdAmount = Math.max(0, mg.holdAmount - dt * 0.8);
+        }
+    }
+}
+
+function drawMiniGame() {
+    var mg = miniGameState;
+    if (!mg) return;
+    var w = mgCanvas.width, h = mgCanvas.height;
+    mgCtx.clearRect(0, 0, w, h);
+
+    var grad = mgCtx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
+    grad.addColorStop(0, '#1e293b');
+    grad.addColorStop(1, '#0f172a');
+    mgCtx.fillStyle = grad;
+    mgCtx.fillRect(0, 0, w, h);
+
+    if (mg.type === 'aim') {
+        mgCtx.fillStyle = 'rgba(59,130,246,0.2)';
+        mgCtx.fillRect(50, h/2 - 20, w - 100, 40);
+        var targetX = 50 + mg.aimTarget * (w - 100);
+        var zoneW = mg.aimTargetW * (w - 100);
+        mgCtx.fillStyle = 'rgba(34,197,94,0.5)';
+        mgCtx.fillRect(targetX - zoneW/2, h/2 - 20, zoneW, 40);
+        var posX = 50 + mg.aimPos * (w - 100);
+        mgCtx.fillStyle = '#fbbf24';
+        mgCtx.beginPath();
+        mgCtx.moveTo(posX, h/2 - 30);
+        mgCtx.lineTo(posX - 12, h/2 - 50);
+        mgCtx.lineTo(posX + 12, h/2 - 50);
+        mgCtx.closePath();
+        mgCtx.fill();
+        mgCtx.fillRect(posX - 3, h/2 - 25, 6, 50);
+    } else if (mg.type === 'rhythm') {
+        for (var i = 0; i < 3; i++) {
+            var ly = 50 + i * 100;
+            var lColor = mg.contacts[i].leftColor;
+            mgCtx.fillStyle = mg.contacts[i].connected ? '#22c55e' : lColor;
+            mgCtx.beginPath();
+            mgCtx.arc(80, ly, 25, 0, Math.PI * 2);
+            mgCtx.fill();
+            mgCtx.strokeStyle = mg.selectedLeft === i ? '#fbbf24' : 'rgba(255,255,255,0.3)';
+            mgCtx.lineWidth = 3;
+            mgCtx.stroke();
+
+            var rightOriginalIdx = mg.rightOrder[i];
+            var ry = 50 + rightOriginalIdx * 100;
+            var rColor = mg.contacts[rightOriginalIdx].rightColor;
+            mgCtx.fillStyle = mg.contacts[rightOriginalIdx].connected ? '#22c55e' : rColor;
+            mgCtx.beginPath();
+            mgCtx.arc(420, ry, 25, 0, Math.PI * 2);
+            mgCtx.fill();
+            mgCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            mgCtx.lineWidth = 3;
+            mgCtx.stroke();
+        }
+        mgCtx.fillStyle = '#cbd5e1';
+        mgCtx.font = 'bold 14px Arial';
+        mgCtx.textAlign = 'center';
+        mgCtx.fillText('Слева: Провода', 80, 290);
+        mgCtx.fillText('Справа: Разъёмы', 420, 290);
+    } else if (mg.type === 'rotate') {
+        mgCtx.strokeStyle = 'rgba(59,130,246,0.3)';
+        mgCtx.lineWidth = 20;
+        mgCtx.beginPath();
+        mgCtx.arc(w/2, h/2, 100, 0, Math.PI * 2);
+        mgCtx.stroke();
+        var progress = Math.min(1, mg.rotateAmount / mg.rotateNeeded);
+        mgCtx.strokeStyle = '#22c55e';
+        mgCtx.beginPath();
+        mgCtx.arc(w/2, h/2, 100, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
+        mgCtx.stroke();
+        var angle = -Math.PI/2 + progress * Math.PI * 2;
+        mgCtx.fillStyle = '#fbbf24';
+        mgCtx.beginPath();
+        mgCtx.arc(w/2 + Math.cos(angle) * 100, h/2 + Math.sin(angle) * 100, 14, 0, Math.PI * 2);
+        mgCtx.fill();
+        mgCtx.fillStyle = '#fff';
+        mgCtx.font = 'bold 20px Arial';
+        mgCtx.textAlign = 'center';
+        mgCtx.fillText(Math.floor(progress * 100) + '%', w/2, h/2 + 7);
+    } else if (mg.type === 'hold') {
+        mgCtx.strokeStyle = 'rgba(59,130,246,0.3)';
+        mgCtx.lineWidth = 20;
+        mgCtx.beginPath();
+        mgCtx.arc(w/2, h/2, 90, 0, Math.PI * 2);
+        mgCtx.stroke();
+        mgCtx.strokeStyle = mg.isHolding ? '#22c55e' : '#fbbf24';
+        mgCtx.beginPath();
+        mgCtx.arc(w/2, h/2, 90, -Math.PI/2, -Math.PI/2 + mg.holdAmount * Math.PI * 2);
+        mgCtx.stroke();
+        mgCtx.fillStyle = '#fff';
+        mgCtx.font = 'bold 48px Arial';
+        mgCtx.textAlign = 'center';
+        mgCtx.fillText(Math.floor(mg.holdAmount * 100) + '%', w/2, h/2 + 15);
+        mgCtx.fillStyle = mg.isHolding ? '#22c55e' : '#fbbf24';
+        mgCtx.font = 'bold 16px Arial';
+        mgCtx.fillText(mg.isHolding ? 'ДЕРЖИ!' : 'ЗАЖМИ ЛКМ', w/2, h/2 + 70);
+    }
+}
+
+function finishMiniGame(success) {
+    if (!miniGameState || miniGameState.finished) return;
+    miniGameState.finished = true;
+    var result = document.getElementById('mgResult');
+    result.textContent = success ? '✅ УСПЕХ!' : '❌ ПРОВАЛ';
+    result.className = 'result ' + (success ? 'good' : 'bad');
+    var cb = miniGameState.callback;
+    setTimeout(function() {
+        document.getElementById('miniGame').classList.remove('show');
+        var cbCopy = cb;
+        miniGameState = null;
+        if (cbCopy) cbCopy(success);
+    }, 800);
+}
+
+function showModal(type, title, text, price, cb) {
+    var m = document.getElementById('modal');
+    m.className = type === 'err' ? 'err show' : 'show';
+    document.getElementById('mTitle').textContent = title;
+    document.getElementById('mText').textContent = text;
+    document.getElementById('mPrice').textContent = price || '';
+    document.getElementById('mBtn').onclick = function() {
+        m.classList.remove('show');
+        if (cb) cb();
+    };
+}
+
+function animateScreenLift(callback) {
+    if (!deviceGroup || !deviceGroup.userData.screenGroup) return;
+    var sg = deviceGroup.userData.screenGroup;
+    var startY = sg.position.y;
+    var startTime = performance.now();
+    function anim() {
+        var t = (performance.now() - startTime) / 800;
+        if (t >= 1) {
+            sg.position.y = 0.4;
+            sg.rotation.x = -0.5;
+            sg.rotation.z = 0.4;
+            if (callback) callback();
+            return;
+        }
+        sg.position.y = startY + t * (0.4 - startY);
+        sg.rotation.x = -t * 0.5;
+        sg.rotation.z = t * 0.4;
+        requestAnimationFrame(anim);
+    }
+    anim();
+}
+
+function animateScreenPlace(callback) {
+    if (!deviceGroup || !deviceGroup.userData.screenGroup) return;
+    var sg = deviceGroup.userData.screenGroup;
+    sg.position.set(0, 0.4, 0);
+    sg.rotation.set(-0.5, 0, 0.4);
+    
+    var startY = 0.4;
+    var startRotX = -0.5;
+    var startRotZ = 0.4;
+    var startTime = performance.now();
+    function anim() {
+        var t = (performance.now() - startTime) / 800;
+        if (t >= 1) {
+            sg.position.y = 0.022;
+            sg.rotation.x = 0;
+            sg.rotation.z = 0;
+            if (callback) callback();
+            return;
+        }
+        sg.position.y = startY + (0.022 - startY) * t;
+        sg.rotation.x = startRotX + (0 - startRotX) * t;
+        sg.rotation.z = startRotZ + (0 - startRotZ) * t;
+        requestAnimationFrame(anim);
+    }
+    anim();
+}
+
+var canvasEl = document.getElementById('c');
+canvasEl.addEventListener('mousedown', function(e) {
+    if (mode !== 'lobby' || gamePaused) return;
+    if (e.button !== 0) return;
+    cameraState.isDragging = true;
+    cameraState.lastX = e.clientX;
+    cameraState.lastY = e.clientY;
+});
+
+window.addEventListener('mousemove', function(e) {
+    if (!cameraState.isDragging) return;
+    var dx = e.clientX - cameraState.lastX;
+    var dy = e.clientY - cameraState.lastY;
+    cameraState.lastX = e.clientX;
+    cameraState.lastY = e.clientY;
+    cameraState.targetYaw -= dx * 0.005;
+    cameraState.targetPitch -= dy * 0.003;
+    cameraState.targetPitch = Math.max(-0.5, Math.min(0.5, cameraState.targetPitch));
+    cameraState.targetYaw = Math.max(-1.2, Math.min(1.2, cameraState.targetYaw));
+});
+
+window.addEventListener('mouseup', function() {
+    cameraState.isDragging = false;
+});
+
+var isClick = true;
+var clickStart = { x: 0, y: 0 };
+
+canvasEl.addEventListener('mousedown', function(e) {
+    clickStart.x = e.clientX;
+    clickStart.y = e.clientY;
+    isClick = true;
+});
+
+canvasEl.addEventListener('mousemove', function(e) {
+    if (!cameraState.isDragging) return;
+    var dx = e.clientX - clickStart.x;
+    var dy = e.clientY - clickStart.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 5) isClick = false;
+});
+
+canvasEl.addEventListener('click', function(e) {
+    if (gameOver || !isClick || gamePaused) return;
+    
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
+    
+    if (mode === 'workshop') { tryStep(); return; }
+
+    mouseVec.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseVec.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouseVec, camera);
+
+    var customerMeshes = [];
+    customers.forEach(function(c) {
+        if (c.state === 'waiting') {
+            c.model.traverse(function(obj) {
+                if (obj.isMesh) {
+                    obj.userData.customerRef = c;
+                    customerMeshes.push(obj);
+                }
+            });
+        }
+    });
+
+    var customerHits = raycaster.intersectObjects(customerMeshes, false);
+    if (customerHits.length > 0) {
+        var customer = customerHits[0].object.userData.customerRef;
+        if (customer && customer.state === 'waiting') {
+            if (customer.isBuyer) startBuyerDialog(customer);
+            else startRepair(customer);
+            return;
+        }
+    }
+
+    var shopMeshes = [];
+    SHOP_STOCK.forEach(function(item) {
+        if (item.model) {
+            item.model.traverse(function(obj) {
+                if (obj.isMesh) {
+                    obj.userData.isShopItemRef = item;
+                    shopMeshes.push(obj);
+                }
+            });
+        }
+    });
+
+    var shopHits = raycaster.intersectObjects(shopMeshes, false);
+    if (shopHits.length > 0) {
+        var shopItem = shopHits[0].object.userData.isShopItemRef;
+        if (shopItem) showModal('ok', shopItem.name, 'Характеристики:\n' + JSON.stringify(shopItem.specs, null, 2), shopItem.basePrice + '₽');
+    }
+});
+
+canvasEl.addEventListener('mousemove', function(e) {
+    if (cameraState.isDragging) { 
+        canvasEl.style.cursor = 'grabbing'; 
+        document.getElementById('tooltip').style.display = 'none';
+        return; 
+    }
+    if (mode === 'workshop' || gameOver || gamePaused) { 
+        canvasEl.style.cursor = 'default'; 
+        document.getElementById('tooltip').style.display = 'none';
+        return; 
+    }
+    if (mode !== 'lobby') return;
+
+    mouseVec.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseVec.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouseVec, camera);
+
+    var customerMeshes = [];
+    customers.forEach(function(c) {
+        if (c.state === 'waiting') {
+            c.model.traverse(function(obj) {
+                if (obj.isMesh) {
+                    obj.userData.customerRef = c;
+                    customerMeshes.push(obj);
+                }
+            });
+        }
+    });
+
+    var customerHits = raycaster.intersectObjects(customerMeshes, false);
+    if (customerHits.length > 0) {
+        canvasEl.style.cursor = 'pointer';
+        document.getElementById('tooltip').style.display = 'none';
+        return;
+    }
+
+    var shopMeshes = [];
+    SHOP_STOCK.forEach(function(item) {
+        if (item.model) {
+            item.model.traverse(function(obj) {
+                if (obj.isMesh) {
+                    obj.userData.isShopItemRef = item;
+                    shopMeshes.push(obj);
+                }
+            });
+        }
+    });
+
+    var shopHits = raycaster.intersectObjects(shopMeshes, false);
+    var tooltip = document.getElementById('tooltip');
+    
+    if (shopHits.length > 0) {
+        canvasEl.style.cursor = 'pointer';
+        var item = shopHits[0].object.userData.isShopItemRef;
+        if (item) {
+            tooltip.style.display = 'block';
+            tooltip.style.left = e.clientX + 'px';
+            tooltip.style.top = e.clientY + 'px';
+            document.getElementById('ttTitle').textContent = item.name;
+            var specsHtml = '';
+            for (var key in item.specs) specsHtml += '<div class="spec"><span>' + key + ':</span><span>' + item.specs[key] + '</span></div>';
+            document.getElementById('ttSpecs').innerHTML = specsHtml;
+            document.getElementById('ttPrice').textContent = item.basePrice + '₽';
+        }
+    } else {
+        canvasEl.style.cursor = 'grab';
+        tooltip.style.display = 'none';
+    }
+});
+
+var lastT = 0;
+function loop(t) {
+    requestAnimationFrame(loop);
+    if (!lastT) lastT = t;
+    var dt = Math.min(0.05, (t - lastT) / 1000);
+    lastT = t;
+    gameTime = t;
+
+    if (gameOver) return;
+
+    if (!gamePaused) {
+        cameraState.yaw += (cameraState.targetYaw - cameraState.yaw) * Math.min(1, dt * 8);
+        cameraState.pitch += (cameraState.targetPitch - cameraState.pitch) * Math.min(1, dt * 8);
+        cameraState.currentX += (cameraState.targetX - cameraState.currentX) * Math.min(1, dt * 5);
+        cameraState.currentY += (cameraState.targetY - cameraState.currentY) * Math.min(1, dt * 5);
+        cameraState.currentZ += (cameraState.targetZ - cameraState.currentZ) * Math.min(1, dt * 5);
+
+        if (mode === 'lobby') updateCamera();
+        updateCity(dt);
+
+        deliveryTimer += dt;
+        if (deliveryTimer >= DELIVERY_INTERVAL) {
+            deliveryTimer = 0;
+            startDelivery();
+        }
+        updateDelivery(dt);
+
+        if (mode === 'workshop' && handGroup.visible) {
+            handGroup.position.y = Math.sin(t * 0.002) * 0.005;
+            handGroup.position.x = Math.cos(t * 0.003) * 0.005;
+        }
+
+        if (mode === 'lobby') {
+            spawnTimer += dt;
+            if (spawnTimer > 5) {
+                spawnTimer = 0;
+                spawnCustomer();
+            }
+            updateCustomers(dt);
+        }
+    }
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', function() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+document.addEventListener('click', function() {
+    if (renderer && !gameOver) renderer.render(scene, camera);
+}, { once: false });
+
+var s = document.createElement('style');
+s.textContent = '@keyframes shake { 0%,100% { transform: translateX(-50%); } 25% { transform: translateX(-50%) rotate(-3deg); } 75% { transform: translateX(-50%) rotate(3deg); } }';
+document.head.appendChild(s);
+</script>
+</body>
+</html>
